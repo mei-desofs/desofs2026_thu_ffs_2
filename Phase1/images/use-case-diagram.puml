@@ -1,37 +1,91 @@
 @startuml
 left to right direction
 
-actor "Regular User" as User
+actor "Common User" as User
 actor "Administrator" as Admin
 actor "Auditor" as Auditor
 
-rectangle "Kryptos System" {
+' Force vertical ordering of actors
+User -[hidden]down-> Admin
+Admin -[hidden]down-> Auditor
 
-  usecase "Register account" as UC_Register
+rectangle "Authentication" {
+  usecase "Register Account" as UC_Register
   usecase "Login" as UC_Login
-
-  usecase "Manage vaults" as UC_ManageVaults
-  usecase "Manage credentials" as UC_ManageCredentials
-
-  usecase "Import credentials" as UC_Import
-  usecase "Export credentials" as UC_Export
-
-  usecase "Manage users" as UC_ManageUsers
-  usecase "View audit logs" as UC_ViewLogs
+  usecase "Logout" as UC_Logout
 }
 
+rectangle "Vault Management" {
+  usecase "Create Vault" as UC_CreateVault
+  usecase "View Vaults" as UC_ViewVaults
+  usecase "Update Vault" as UC_UpdateVault
+  usecase "Delete Vault" as UC_DeleteVault
+}
+
+rectangle "Credential Management" {
+  usecase "Create Credential" as UC_CreateCredential
+  usecase "View Credentials" as UC_ViewCredentials
+  usecase "Update Credential" as UC_UpdateCredential
+  usecase "Delete Credential" as UC_DeleteCredential
+}
+
+rectangle "Trusted Device Management" {
+  usecase "Register Trusted Device" as UC_RegisterDevice
+  usecase "View Trusted Devices" as UC_ViewDevices
+  usecase "Remove Trusted Device" as UC_RemoveDevice
+}
+
+rectangle "Import / Export" {
+  usecase "Import Credentials" as UC_Import
+  usecase "Export Credentials" as UC_Export
+}
+
+rectangle "Administration" {
+  usecase "View All Users" as UC_ViewUsers
+  usecase "Create User" as UC_CreateUser
+  usecase "Deactivate User" as UC_DeactivateUser
+  usecase "Assign Role to User" as UC_AssignRole
+}
+
+rectangle "Audit" {
+  usecase "View Audit Logs" as UC_ViewLogs
+  usecase "Filter Audit Logs" as UC_FilterLogs
+}
+
+' Common User
 User --> UC_Register
 User --> UC_Login
-User --> UC_ManageVaults
-User --> UC_ManageCredentials
+User --> UC_Logout
+User --> UC_CreateVault
+User --> UC_ViewVaults
+User --> UC_UpdateVault
+User --> UC_DeleteVault
+User --> UC_CreateCredential
+User --> UC_ViewCredentials
+User --> UC_UpdateCredential
+User --> UC_DeleteCredential
+User --> UC_RegisterDevice
+User --> UC_ViewDevices
+User --> UC_RemoveDevice
 User --> UC_Import
 User --> UC_Export
 
+' Administrator
 Admin --> UC_Login
-Admin --> UC_ManageUsers
+Admin --> UC_Logout
+Admin --> UC_ViewUsers
+Admin --> UC_CreateUser
+Admin --> UC_DeactivateUser
+Admin --> UC_AssignRole
 Admin --> UC_ViewLogs
 
+' Auditor
 Auditor --> UC_Login
+Auditor --> UC_Logout
 Auditor --> UC_ViewLogs
+Auditor --> UC_FilterLogs
+
+' Extend relationships
+UC_FilterLogs ..> UC_ViewLogs : <<extend>>
 
 @enduml
