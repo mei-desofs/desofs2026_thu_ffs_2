@@ -1,0 +1,37 @@
+@startuml
+left to right direction
+
+actor "Regular User" as User
+actor "Administrator" as Admin
+actor "Auditor" as Auditor
+
+rectangle "Kryptos System" {
+
+  usecase "Register account" as UC_Register
+  usecase "Login" as UC_Login
+
+  usecase "Manage vaults" as UC_ManageVaults
+  usecase "Manage credentials" as UC_ManageCredentials
+
+  usecase "Import credentials" as UC_Import
+  usecase "Export credentials" as UC_Export
+
+  usecase "Manage users" as UC_ManageUsers
+  usecase "View audit logs" as UC_ViewLogs
+}
+
+User --> UC_Register
+User --> UC_Login
+User --> UC_ManageVaults
+User --> UC_ManageCredentials
+User --> UC_Import
+User --> UC_Export
+
+Admin --> UC_Login
+Admin --> UC_ManageUsers
+Admin --> UC_ViewLogs
+
+Auditor --> UC_Login
+Auditor --> UC_ViewLogs
+
+@enduml
