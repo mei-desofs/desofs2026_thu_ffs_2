@@ -1,0 +1,73 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+hide empty members
+
+class User {
+    +id: UUID
+    +email: String
+    +role: Role
+    +masterPasswordHash: String
+    +authSalt: String
+}
+
+class TrustedDevice {
+    +id: UUID
+    +userId: UUID
+    +devicePublicKey : String
+    +deviceFingerprintHash: String
+    +lastActive: DateTime
+}
+
+enum Role {
+    ADMINISTRATOR
+    REGULAR_USER
+    AUDITOR
+}
+
+class Vault {
+    +id: UUID
+    +userId: UUID
+    +name: String
+    +description: String
+    +encryptedVaultKey: String
+}
+
+class Credential {
+    +id: UUID
+    +vaultId: UUID
+    +url: String
+    +username: String
+    +encryptedPassword: String
+    +encryptedNotes: String
+    +encryptionNonce: String
+    +authTag: String
+}
+
+class AuditRecord {
+    +id: UUID
+    +actorId: UUID
+    +action: String
+    +timestamp: DateTime
+}
+
+class CredentialTransferService {
+    +exportPath: String
+    +importPath: String
+    +encryptionKey: String
+}
+
+
+User "1" *-down- "0..*" TrustedDevice : authorizes >
+User "1" *-down- "0..*" Vault : owns >
+Vault "1" *-down- "0..*" Credential : contains >
+
+User "1" .-down.> "0..*" AuditRecord : triggers >
+
+CredentialTransferService .-right.> Vault : orchestrates >
+CredentialTransferService .-right.> Credential : processes >
+CredentialTransferService .-right.> AuditRecord : generates >
+
+@enduml
