@@ -1,0 +1,52 @@
+<mxfile host="65bd71144e">
+    <diagram name="Page-1" id="IosV0XVszdcOXFSFnIXc">
+        <mxGraphModel dx="1031" dy="793" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="75" value="" style="group" parent="1" vertex="1" connectable="0">
+                    <mxGeometry x="80" y="250" width="760" height="550" as="geometry"/>
+                </mxCell>
+                <mxCell id="72" value="" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;container=0;" parent="75" vertex="1">
+                    <mxGeometry y="40" width="640" height="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="74" value="Kryptos" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;container=0;" parent="75" vertex="1">
+                    <mxGeometry x="230.95022624434387" y="40.00395061728395" width="178.0995475113122" height="59.25925925925926" as="geometry"/>
+                </mxCell>
+                <mxCell id="76" value="userManagement" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;container=0;" parent="75" vertex="1">
+                    <mxGeometry x="20.003076923076925" y="80" width="221.53846153846155" height="97.77777777777777" as="geometry"/>
+                </mxCell>
+                <mxCell id="77" value="vaultManagement" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;container=0;" parent="75" vertex="1">
+                    <mxGeometry x="390" y="80" width="221.54" height="97.77777777777777" as="geometry"/>
+                </mxCell>
+                <mxCell id="78" value="" style="endArrow=open;startArrow=none;endFill=0;startFill=0;endSize=8;html=1;verticalAlign=bottom;dashed=1;labelBackgroundColor=none;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0;exitY=0;exitDx=0;exitDy=55.888888888888886;exitPerimeter=0;" parent="75" source="79" target="76" edge="1">
+                    <mxGeometry width="160" relative="1" as="geometry">
+                        <mxPoint x="220" y="135.11111111111111" as="sourcePoint"/>
+                        <mxPoint x="443.0769230769231" y="62.22222222222222" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="130" y="266"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="79" value="bootstrapping" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;container=0;" vertex="1" parent="75">
+                    <mxGeometry x="209.2330769230769" y="210" width="221.53846153846155" height="97.77777777777777" as="geometry"/>
+                </mxCell>
+                <mxCell id="80" value="credentialManagement" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;container=0;" vertex="1" parent="75">
+                    <mxGeometry x="20.003076923076947" y="330" width="221.53846153846155" height="97.77777777777777" as="geometry"/>
+                </mxCell>
+                <mxCell id="81" value="deviceManagement" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=40;tabHeight=14;tabPosition=left;html=1;whiteSpace=wrap;container=0;" vertex="1" parent="75">
+                    <mxGeometry x="390.00307692307695" y="330" width="221.53846153846155" height="97.77777777777777" as="geometry"/>
+                </mxCell>
+                <mxCell id="82" value="" style="endArrow=open;startArrow=none;endFill=0;startFill=0;endSize=8;html=1;verticalAlign=bottom;dashed=1;labelBackgroundColor=none;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0;exitY=0;exitDx=221.53846153846155;exitDy=55.888888888888886;exitPerimeter=0;" edge="1" parent="75" source="79" target="77">
+                    <mxGeometry width="160" relative="1" as="geometry">
+                        <mxPoint x="219" y="276" as="sourcePoint"/>
+                        <mxPoint x="141" y="188" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="500" y="266"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
