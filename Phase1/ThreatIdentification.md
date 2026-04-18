@@ -90,6 +90,11 @@ Entry points define the interfaces through which potential attackers can interac
 
 ## Data Flow Diagrams
 
+### User Authentication 
+![Authenticate Users](./images/data-flow-diagrams/authenticate-users.png)
+
+### User Management
+![Manage Users](./images/data-flow-diagrams/manage-users.png)
 
 
 From: https://owasp.org/www-community/Threat_Modeling_Process#threat-model-information-sample
