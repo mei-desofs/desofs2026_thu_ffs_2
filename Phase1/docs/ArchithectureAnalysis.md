@@ -158,43 +158,43 @@ The system must expose its functionalities exclusively through a RESTful API, fo
 9. As an Auditor, I want to consult audit logs without being able to modify them or access sensitive credential data.
 10. As an Auditor, I want audit records to be immutable so they can be trusted as evidence.
 
-## Archithecture
+## Architecture
 
 ## Logic view
 
 ### Level 1:
 
-![Logic View N1]()
+![Logic View N1](../images/VL/VL1.png)
 
 ### Level 2:
 
 
-![Logic View N2]()
+![Logic View N2](../images/VL/VL2.png)
 
 
 ### Level 3:
 
 
-![Logic View N3]()
+![Logic View N3](../images/VL/VL3.png)
 
 
 ## Implementation View
 
 ### Level 1:
-![Implementation View N1]()
+![Implementation View N1](../images/VI/VI1.png)
 
 ### Level 2:
-![Implementation View N1]()
+![Implementation View N2](../images/VI/VI2.png)
 
 ### Level 3:
-![Implementation View N1]()
+![Implementation View N3](../images/VI/VI3.png)
 
 ## Deployment View
 
 ### Curent Deployment View
-![Deployment View Current]()
+![Deployment View Current](../images/VD/VD_current.png)
 
 
 ### Future Deployment View
 
-![Deployment View Future]()
+![Deployment View Future](../images/VD/VD_future.png)
