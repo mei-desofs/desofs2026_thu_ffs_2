@@ -96,5 +96,11 @@ Entry points define the interfaces through which potential attackers can interac
 ### User Management
 ![Manage Users](./images/data-flow-diagrams/manage-users.png)
 
+### Vault Management
+![Manage Vaults](./images/data-flow-diagrams/manage-vaults/manage-vaults.png)
+
+### Credential Management
+![Manage Credentials](./images/data-flow-diagrams/manage-credentials/manage-credentials.png)
+
 
 From: https://owasp.org/www-community/Threat_Modeling_Process#threat-model-information-sample
