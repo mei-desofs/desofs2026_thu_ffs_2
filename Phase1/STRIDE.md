@@ -116,6 +116,20 @@
 ### Credential Management
 ![Credential Management Threat Tree](./images/threat-tree-analysis/manage-credentials/manage-credentials.png)
 
+### Trusted Devices Management
+![Trusted Devices Threat Tree](./images/threat-tree-analysis/manage-trustedDevices/manage-trustedDevices.png)
+
+### Import Vault
+![Import Vault Threat Tree](./images/threat-tree-analysis/import-vault/import-vault.png)
+
+### Export Vault
+![Export Vault Threat Tree](./images/threat-tree-analysis/export-vault/export-vault.png)
+
+### System Audit Log
+![Audit Log Threat Tree](./images/threat-tree-analysis/audit-log/audit-log.png)
+
+### Secure Wipe Temporary Files
+![Secure Wipe Threat Tree](./images/threat-tree-analysis/secure-wipe/secure-wipe-temporary-file.png)
 
 
 ## Threat Ranking
