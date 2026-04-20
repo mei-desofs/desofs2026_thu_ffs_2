@@ -93,6 +93,9 @@ Entry points define the interfaces through which potential attackers can interac
 
 ## Data Flow Diagrams
 
+### System Overview (Level 0)
+![System Overview](./images/data-flow-diagrams/system-overview/DFD_Level0.png)
+
 ### User Authentication 
 ![Authenticate Users](./images/data-flow-diagrams/authenticate-users/authenticate-users.png)
 
@@ -104,6 +107,27 @@ Entry points define the interfaces through which potential attackers can interac
 
 ### Credential Management
 ![Manage Credentials](./images/data-flow-diagrams/manage-credentials/manage-credentials.png)
+
+### Trusted Devices Management
+![Manage Trusted Devices](./images/data-flow-diagrams/manage-trustedDevices/manage-trustedDevices.png)
+
+### Import Vault
+![Import Vault](./images/data-flow-diagrams/import-vault/import-vault.png)
+
+#### Import Vault (Level 2)
+![Import Vault Level 2](./images/data-flow-diagrams/import-vault/import-vault-level2.png)
+
+### Export Vault
+![Export Vault](./images/data-flow-diagrams/export-vault/export-vault.png)
+
+#### Export Vault (Level 2)
+![Export Vault Level 2](./images/data-flow-diagrams/export-vault/export-vault-level2.png)
+
+### Audit Log
+![Audit Log](./images/data-flow-diagrams/audit-log/audit-log.png)
+
+### Secure Wipe Temporary Files
+![Secure Wipe](./images/data-flow-diagrams/secure-wipe-temporary-file/secure-wipe-temporary-file.png)
 
 
 ## Risk Assessment
