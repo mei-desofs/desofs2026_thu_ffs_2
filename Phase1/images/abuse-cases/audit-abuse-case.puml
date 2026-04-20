@@ -1,0 +1,34 @@
+@startuml
+left to right direction
+
+hide stereotype
+skinparam defaultTextAlignment center
+
+skinparam usecase {
+    BackgroundColor<<Abuse>> Black
+    FontColor<<Abuse>> White
+    BorderColor<<Abuse>> Black
+}
+
+actor "Auditor" as Auditor
+actor "Attacker" as Attacker
+
+usecase "View Audit Logs" as UC_ViewLogs
+usecase "Filter Audit Logs" as UC_FilterLogs
+
+usecase "Append-Only Storage\n& Immutability" as UC_AppendOnly
+
+usecase "Audit Log Tampering" as AC_Tampering <<Abuse>>
+
+Auditor --> UC_ViewLogs
+Auditor --> UC_FilterLogs
+
+UC_ViewLogs ..> UC_AppendOnly : <<includes>>
+
+UC_AppendOnly ..> AC_Tampering : <<mitigates>>
+
+UC_ViewLogs <.. AC_Tampering : <<threatens>>
+
+AC_Tampering <-- Attacker
+
+@enduml

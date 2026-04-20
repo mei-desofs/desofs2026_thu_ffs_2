@@ -1,0 +1,37 @@
+@startuml
+left to right direction
+hide stereotype
+skinparam defaultTextAlignment center
+
+skinparam usecase {
+    BackgroundColor<<Abuse>> Black
+    FontColor<<Abuse>> White
+    BorderColor<<Abuse>> Black
+}
+
+actor "User" as User
+actor "Attacker" as Attacker
+
+usecase "Create Vault" as UC_Create
+usecase "View Vaults" as UC_View
+usecase "Update Vault" as UC_Update
+usecase "Delete Vault" as UC_Delete
+
+usecase "Verify Vault Ownership" as UC_Verify
+
+usecase "Unauthorized Vault\nDeletion" as AC_IDOR <<Abuse>>
+
+User --> UC_Create
+User --> UC_View
+User --> UC_Update
+User --> UC_Delete
+
+UC_Delete ..> UC_Verify : <<includes>>
+
+UC_Verify ..> AC_IDOR : <<mitigates>>
+
+UC_Delete <.. AC_IDOR : <<threatens>>
+
+AC_IDOR <-- Attacker
+
+@enduml

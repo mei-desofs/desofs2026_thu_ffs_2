@@ -1,0 +1,35 @@
+@startuml
+left to right direction
+hide stereotype
+skinparam defaultTextAlignment center
+
+skinparam usecase {
+    BackgroundColor<<Abuse>> Black
+    FontColor<<Abuse>> White
+    BorderColor<<Abuse>> Black
+}
+
+actor "User" as User
+actor "Attacker" as Attacker
+
+usecase "Login" as UC_Login
+usecase "Logout" as UC_Logout
+usecase "Register Account" as UC_Register
+
+usecase "Rate Limiting &\nAccount Lockout" as UC_RateLimit
+
+usecase "Brute Force /\nCredential Stuffing" as AC_BruteForce <<Abuse>>
+
+User --> UC_Login
+User --> UC_Logout
+User --> UC_Register
+
+UC_Login ..> UC_RateLimit : <<includes>>
+
+UC_RateLimit ..> AC_BruteForce : <<mitigates>>
+
+UC_Login <.. AC_BruteForce : <<threatens>>
+
+AC_BruteForce <-- Attacker
+
+@enduml

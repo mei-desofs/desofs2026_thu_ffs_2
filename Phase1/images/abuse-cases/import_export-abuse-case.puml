@@ -1,0 +1,40 @@
+@startuml
+left to right direction
+
+hide stereotype
+skinparam defaultTextAlignment center
+
+skinparam usecase {
+    BackgroundColor<<Abuse>> Black
+    FontColor<<Abuse>> White
+    BorderColor<<Abuse>> Black
+}
+
+actor "User" as User
+actor "Attacker" as Attacker
+
+usecase "Import Credentials" as UC_Import
+usecase "Export Credentials" as UC_Export
+    
+usecase "Validate File Data" as UC_Validate
+usecase "Verify Vault Ownership" as UC_Verify
+
+usecase "Malicious File Upload" as AC_Upload <<Abuse>>
+usecase "Extract Unauthorized Vault" as AC_Extract <<Abuse>>
+
+User --> UC_Import
+User --> UC_Export
+
+UC_Import ..> UC_Validate : <<includes>>
+UC_Export ..> UC_Verify : <<includes>>
+
+UC_Validate ..> AC_Upload : <<mitigates>>
+UC_Verify ..> AC_Extract : <<mitigates>>
+
+UC_Import <.. AC_Upload : <<threatens>>
+UC_Export <.. AC_Extract : <<threatens>>
+
+AC_Upload <-- Attacker
+AC_Extract <-- Attacker
+
+@enduml

@@ -1,0 +1,38 @@
+@startuml
+left to right direction
+
+hide stereotype
+skinparam defaultTextAlignment center
+
+skinparam usecase {
+    BackgroundColor<<Abuse>> Black
+    FontColor<<Abuse>> White
+    BorderColor<<Abuse>> Black
+}
+
+actor "Administrator" as Admin
+actor "Attacker" as Attacker
+
+usecase "View All Users" as UC_ViewUsers
+usecase "Create User" as UC_CreateUser
+usecase "Deactivate User" as UC_DeactivateUser
+usecase "Assign Role to User" as UC_AssignRole
+
+usecase "Strict RBAC Verification" as UC_RBAC
+
+usecase "Privilege Escalation" as AC_Escalation <<Abuse>>
+
+Admin --> UC_ViewUsers
+Admin --> UC_CreateUser
+Admin --> UC_DeactivateUser
+Admin --> UC_AssignRole
+
+UC_AssignRole ..> UC_RBAC : <<includes>>
+
+UC_RBAC ..> AC_Escalation : <<mitigates>>
+
+UC_AssignRole <.. AC_Escalation : <<threatens>>
+
+AC_Escalation <-- Attacker
+
+@enduml

@@ -1,0 +1,36 @@
+@startuml
+left to right direction
+
+hide stereotype
+skinparam defaultTextAlignment center
+
+skinparam usecase {
+    BackgroundColor<<Abuse>> Black
+    FontColor<<Abuse>> White
+    BorderColor<<Abuse>> Black
+}
+
+actor "User" as User
+actor "Attacker" as Attacker
+
+usecase "Register Trusted Device" as UC_Register
+usecase "View Trusted Devices" as UC_View
+usecase "Remove Trusted Device" as UC_Remove
+
+usecase "Require MFA / Re-Auth" as UC_RequireMFA
+
+usecase "Rogue Device Registration" as AC_Rogue <<Abuse>>
+
+User --> UC_Register
+User --> UC_View
+User --> UC_Remove
+
+UC_Register ..> UC_RequireMFA : <<includes>>
+
+UC_RequireMFA ..> AC_Rogue : <<mitigates>>
+
+UC_Register <.. AC_Rogue : <<threatens>>
+
+AC_Rogue <-- Attacker
+
+@enduml
