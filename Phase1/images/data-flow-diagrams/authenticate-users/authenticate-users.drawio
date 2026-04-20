@@ -1,0 +1,103 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="GGy3NkkoerBkbMe0tnQH">
+    <mxGraphModel dx="1139" dy="583" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Anonimous User" vertex="1">
+          <mxGeometry height="60" width="120" x="340" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-2" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" value="Authentication Process" vertex="1">
+          <mxGeometry height="80" width="80" x="720" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-3" edge="1" parent="1" source="RzQfK_cNO3PT-UIa_nug-1" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="RzQfK_cNO3PT-UIa_nug-2" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="560" y="280" />
+            </Array>
+            <mxPoint x="470" y="330" as="sourcePoint" />
+            <mxPoint x="630" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-4" connectable="0" parent="RzQfK_cNO3PT-UIa_nug-3" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Submit Login&lt;br&gt; Credentials" vertex="1">
+          <mxGeometry relative="1" x="-0.1809" y="-3" as="geometry">
+            <mxPoint x="10" y="-5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-5" edge="1" parent="1" source="RzQfK_cNO3PT-UIa_nug-2" style="endArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="RzQfK_cNO3PT-UIa_nug-1" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="550" y="430" />
+            </Array>
+            <mxPoint x="680" y="450" as="sourcePoint" />
+            <mxPoint x="730" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-6" connectable="0" parent="RzQfK_cNO3PT-UIa_nug-5" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="JWT Token" vertex="1">
+          <mxGeometry relative="1" x="0.0545" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-7" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;top=0;bottom=0;fillColor=none;rotation=0;direction=south;" value="User" vertex="1">
+          <mxGeometry height="60" width="140" x="1040" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-8" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="RzQfK_cNO3PT-UIa_nug-7" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="940" y="250" />
+            </Array>
+            <mxPoint x="800.0042712474622" y="289.99572875253784" as="sourcePoint" />
+            <mxPoint x="1011.72" y="213.28" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-9" connectable="0" parent="RzQfK_cNO3PT-UIa_nug-8" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Query User Credentials" vertex="1">
+          <mxGeometry relative="1" x="-0.2224" y="-1" as="geometry">
+            <mxPoint x="17" y="-6" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-10" edge="1" parent="1" source="RzQfK_cNO3PT-UIa_nug-7" style="endArrow=classic;html=1;rounded=0;entryX=0.972;entryY=0.788;entryDx=0;entryDy=0;entryPerimeter=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="RzQfK_cNO3PT-UIa_nug-2" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="940" y="430" />
+            </Array>
+            <mxPoint x="1099.76" y="438" as="sourcePoint" />
+            <mxPoint x="790" y="320" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-11" connectable="0" parent="RzQfK_cNO3PT-UIa_nug-10" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="User verified" vertex="1">
+          <mxGeometry relative="1" x="0.1376" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-12" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="680" y="450" />
+              <mxPoint x="680" y="270" />
+            </Array>
+            <mxPoint x="630" y="510" as="sourcePoint" />
+            <mxPoint x="610" y="190" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-13" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="User" vertex="1">
+          <mxGeometry height="30" width="60" x="650" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-14" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="1020" y="440" />
+              <mxPoint x="1020" y="250" />
+            </Array>
+            <mxPoint x="1060" y="490" as="sourcePoint" />
+            <mxPoint x="1060" y="220" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="RzQfK_cNO3PT-UIa_nug-15" connectable="0" parent="RzQfK_cNO3PT-UIa_nug-14" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Database" vertex="1">
+          <mxGeometry relative="1" x="-0.6754" y="-2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

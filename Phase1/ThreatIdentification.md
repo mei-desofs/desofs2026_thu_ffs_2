@@ -94,10 +94,10 @@ Entry points define the interfaces through which potential attackers can interac
 ## Data Flow Diagrams
 
 ### User Authentication 
-![Authenticate Users](./images/data-flow-diagrams/authenticate-users.png)
+![Authenticate Users](./images/data-flow-diagrams/authenticate-users/authenticate-users.png)
 
 ### User Management
-![Manage Users](./images/data-flow-diagrams/manage-users.png)
+![Manage Users](./images/data-flow-diagrams/manage-users/manage-users.png)
 
 ### Vault Management
 ![Manage Vaults](./images/data-flow-diagrams/manage-vaults/manage-vaults.png)
