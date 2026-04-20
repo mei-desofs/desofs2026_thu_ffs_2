@@ -13,3 +13,12 @@ One of the most important and sensitive functionalities of the application is th
 - **Secure File Handling and Audit Logging:** directory creation, file reading and writing, secure deletion after use, and auditable logging of performed operations.
 
 The system architecture is based on a **REST API** connected to a **relational database**, ensuring data persistence, organization, and scalability. As a backend-only application, Kryptos was designed to function as a service provider and may later be integrated with external clients or frontend interfaces. Its structure follows the principles of Domain-Driven Design (DDD) and is organized around four main aggregates: User, Vault, Credential, and TrustedDevice.
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [SystemOverview.md](./SystemOverview.md) | Functional and non-functional requirements, security requirements, domain model, use case diagram, and architectural views (Logic, Implementation, Deployment) |
+| [ThreatIdentification.md](./ThreatIdentification.md) | Threat model information, entry/exit points, assets, trust levels, data flow diagrams, risk assessment, and mitigations |
+| [STRIDE.md](./STRIDE.md) | STRIDE threat analysis per DFD element, abuse case diagrams, threat tree analysis, and threat ranking (DREAD) |
+| [SecurityTestPlan.md](./SecurityTestPlan.md) | Security testing methodology, test categories, and traceability matrix linking security requirements to tests |
