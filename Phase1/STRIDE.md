@@ -120,7 +120,49 @@
 
 ## Threat Ranking
 
+Threats are ranked using the **DREAD** risk assessment model. Each threat is scored from 1–10 across five factors:
 
+| Factor | Question |
+|--------|----------|
+| **D**amage | How big would the damage be if the attack succeeded? |
+| **R**eproducibility | How easy is it to reproduce the attack? |
+| **E**xploitability | How much effort and expertise is needed to exploit it? |
+| **A**ffected Users | What percentage of users would be affected? |
+| **D**iscoverability | How easy is it for an attacker to discover this threat? |
 
+**DREAD Score** = (D + R + E + A + Di) / 5 — ranges: High ≥ 7.5 | Medium 5.0–7.4 | Low < 5.0
+
+| Risk ID | Threat | D | R | E | A | Di | Score | Level |
+|---------|--------|---|---|---|---|----|-------|-------|
+| R01 | Brute Force / Credential Stuffing | 8 | 10 | 9 | 10 | 9 | **9.2** | High |
+| R02 | JWT Manipulation (EoP) | 9 | 7 | 6 | 5 | 6 | **6.6** | Medium |
+| R03 | Credentials Exposed in Transit or at Rest | 9 | 7 | 6 | 10 | 5 | **7.4** | Medium |
+| R04 | Privilege Escalation (role manipulation) | 9 | 6 | 6 | 7 | 5 | **6.6** | Medium |
+| R05 | IDOR on Credential Endpoints | 9 | 9 | 9 | 10 | 8 | **9.0** | High |
+| R06 | Plaintext Credential Leak | 9 | 6 | 6 | 7 | 5 | **6.6** | Medium |
+| R07 | IDOR on Vault Endpoints | 7 | 9 | 8 | 10 | 8 | **8.4** | High |
+| R08 | Malicious File Upload | 9 | 8 | 7 | 8 | 7 | **7.8** | High |
+| R09 | Temporary File Exposed on Disk | 8 | 6 | 5 | 7 | 4 | **6.0** | Medium |
+| R10 | IDOR on Export Endpoint | 9 | 9 | 9 | 10 | 8 | **9.0** | High |
+| R11 | Export Endpoint Abuse (DoS) | 6 | 9 | 9 | 10 | 8 | **8.4** | High |
+| R12 | Temporary File Not Securely Wiped | 9 | 7 | 6 | 8 | 5 | **7.0** | Medium |
+| R13 | Path Traversal in Secure Wipe | 9 | 6 | 6 | 5 | 4 | **6.0** | Medium |
+| R14 | Audit Log Tampering / Deletion | 8 | 4 | 4 | 5 | 3 | **4.8** | Low |
+| R15 | Log Injection (Log4Shell-like) | 7 | 5 | 5 | 6 | 4 | **5.4** | Medium |
+| R16 | Log Flooding (DoS) | 5 | 9 | 9 | 8 | 7 | **7.6** | High |
+| R17 | Rogue Device Registration | 7 | 6 | 6 | 5 | 5 | **5.8** | Medium |
+| R18 | Admin Actions Not Logged | 6 | 5 | 4 | 7 | 3 | **5.0** | Medium |
+| R19 | Session Hijacking for Vault Export | 8 | 6 | 6 | 5 | 6 | **6.2** | Medium |
+| R20 | Wipe Failure Not Logged | 7 | 6 | 5 | 7 | 3 | **5.6** | Medium |
+
+### DREAD Priority Summary
+
+| Level | Threshold | Count | Threat IDs |
+|-------|-----------|-------|------------|
+| **High** | Score ≥ 7.5 | 7 | R01, R05, R10, R07, R11, R08, R16 |
+| **Medium** | Score 5.0–7.4 | 12 | R03, R12, R02, R04, R06, R19, R09, R13, R17, R20, R15, R18 |
+| **Low** | Score < 5.0 | 1 | R14 |
+
+For detailed mitigations for each identified risk, see [ThreatIdentification.md](./ThreatIdentification.md#mitigations).
 
 From: https://owasp.org/www-community/Threat_Modeling_Process#threat-model-information-sample

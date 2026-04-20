@@ -3,6 +3,9 @@
 ## Threat Model Information
 Application Name: Kryptos
 Application Version: 1.0
+Document Owner: DESOFS Group THU FFS 2
+Participants: Bruno Lourenço, Diogo Paiva, Diana Neves, Filipa Cardoso
+Reviewer: Paulo Baltarejo Sousa (PBS)
 
 Description:
 Kryptos is a secure credential management system designed to store sensitive authentication data like website logins. The application is structured around four main aggregates: User, Vault, Credential, and TrustedDevice.
@@ -143,7 +146,7 @@ Risk is assessed using the **OWASP Risk Rating Methodology**, combining two dime
 | Risk Level | Count | Threat IDs |
 |------------|-------|------------|
 | **Critical** | 5 | R01, R05, R08, R10, R12 |
-| **High** | 11 | R02, R03, R04, R06, R07, R09, R11, R13, R16, R17, R19, R20 |
+| **High** | 12 | R02, R03, R04, R06, R07, R09, R11, R13, R16, R17, R19, R20 |
 | **Medium** | 4 | R14, R15, R18 |
 | **Low** | 0 | — |
 
