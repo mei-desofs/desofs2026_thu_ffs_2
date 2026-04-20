@@ -1,9 +1,6 @@
 @startuml
 left to right direction
-
 hide stereotype
-skinparam defaultTextAlignment center
-
 skinparam usecase {
     BackgroundColor<<Abuse>> Black
     FontColor<<Abuse>> White
@@ -17,18 +14,23 @@ usecase "View Audit Logs" as UC_ViewLogs
 usecase "Filter Audit Logs" as UC_FilterLogs
 
 usecase "Append-Only Storage\n& Immutability" as UC_AppendOnly
+usecase "Log Integrity Validation" as UC_Integrity
 
 usecase "Audit Log Tampering" as AC_Tampering <<Abuse>>
+usecase "Log Injection / False Trails" as AC_Injection <<Abuse>>
 
 Auditor --> UC_ViewLogs
 Auditor --> UC_FilterLogs
 
 UC_ViewLogs ..> UC_AppendOnly : <<includes>>
+UC_FilterLogs ..> UC_Integrity : <<includes>>
 
 UC_AppendOnly ..> AC_Tampering : <<mitigates>>
+UC_Integrity ..> AC_Injection : <<mitigates>>
 
 UC_ViewLogs <.. AC_Tampering : <<threatens>>
+UC_FilterLogs <.. AC_Injection : <<threatens>>
 
 AC_Tampering <-- Attacker
-
+AC_Injection <-- Attacker
 @enduml

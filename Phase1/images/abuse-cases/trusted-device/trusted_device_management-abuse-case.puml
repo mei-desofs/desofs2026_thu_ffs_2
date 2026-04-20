@@ -1,6 +1,5 @@
 @startuml
 left to right direction
-
 hide stereotype
 skinparam defaultTextAlignment center
 
@@ -18,19 +17,25 @@ usecase "View Trusted Devices" as UC_View
 usecase "Remove Trusted Device" as UC_Remove
 
 usecase "Require MFA / Re-Auth" as UC_RequireMFA
+usecase "Notification of New Device" as UC_Notify
 
 usecase "Rogue Device Registration" as AC_Rogue <<Abuse>>
+usecase "Unauthorized Device Removal" as AC_RemoveLegit <<Abuse>>
 
 User --> UC_Register
 User --> UC_View
 User --> UC_Remove
 
 UC_Register ..> UC_RequireMFA : <<includes>>
+UC_Register ..> UC_Notify : <<includes>>
+UC_Remove ..> UC_RequireMFA : <<includes>>
 
 UC_RequireMFA ..> AC_Rogue : <<mitigates>>
+UC_Notify ..> AC_RemoveLegit : <<mitigates>>
 
 UC_Register <.. AC_Rogue : <<threatens>>
+UC_Remove <.. AC_RemoveLegit : <<threatens>>
 
 AC_Rogue <-- Attacker
-
+AC_RemoveLegit <-- Attacker
 @enduml

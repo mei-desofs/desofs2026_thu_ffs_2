@@ -18,20 +18,31 @@ usecase "Update Vault" as UC_Update
 usecase "Delete Vault" as UC_Delete
 
 usecase "Verify Vault Ownership" as UC_Verify
+usecase "Input Sanitization" as UC_Sanitize
+usecase "Subscription Limits" as UC_Limits
 
-usecase "Unauthorized Vault\nDeletion" as AC_IDOR <<Abuse>>
+usecase "Unauthorized Vault Deletion" as AC_IDOR <<Abuse>>
+usecase "Vault Metadata Injection" as AC_Injection <<Abuse>>
+usecase "Resource Exhaustion" as AC_DoS <<Abuse>>
 
 User --> UC_Create
 User --> UC_View
 User --> UC_Update
 User --> UC_Delete
 
+UC_Create ..> UC_Limits : <<includes>>
+UC_Update ..> UC_Sanitize : <<includes>>
 UC_Delete ..> UC_Verify : <<includes>>
 
 UC_Verify ..> AC_IDOR : <<mitigates>>
+UC_Sanitize ..> AC_Injection : <<mitigates>>
+UC_Limits ..> AC_DoS : <<mitigates>>
 
 UC_Delete <.. AC_IDOR : <<threatens>>
+UC_Update <.. AC_Injection : <<threatens>>
+UC_Create <.. AC_DoS : <<threatens>>
 
 AC_IDOR <-- Attacker
-
+AC_Injection <-- Attacker
+AC_DoS <-- Attacker
 @enduml

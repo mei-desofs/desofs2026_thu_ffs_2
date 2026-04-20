@@ -1,8 +1,6 @@
 @startuml
 left to right direction
 hide stereotype
-skinparam defaultTextAlignment center
-
 skinparam usecase {
     BackgroundColor<<Abuse>> Black
     FontColor<<Abuse>> White
@@ -16,20 +14,31 @@ usecase "Login" as UC_Login
 usecase "Logout" as UC_Logout
 usecase "Register Account" as UC_Register
 
-usecase "Rate Limiting &\nAccount Lockout" as UC_RateLimit
+usecase "Rate Limiting & Account Lockout" as UC_Mitigate1
+usecase "Token Rotation on Login" as UC_Mitigate2
+usecase "Secure JWT & TLS" as UC_Mitigate3
 
-usecase "Brute Force /\nCredential Stuffing" as AC_BruteForce <<Abuse>>
+usecase "Brute Force / Stuffing" as AC_BruteForce <<Abuse>>
+usecase "Session Fixation" as AC_Fixation <<Abuse>>
+usecase "JWT Manipulation" as AC_JWT <<Abuse>>
 
 User --> UC_Login
 User --> UC_Logout
 User --> UC_Register
 
-UC_Login ..> UC_RateLimit : <<includes>>
+UC_Login ..> UC_Mitigate1 : <<includes>>
+UC_Login ..> UC_Mitigate2 : <<includes>>
+UC_Login ..> UC_Mitigate3 : <<includes>>
 
-UC_RateLimit ..> AC_BruteForce : <<mitigates>>
+UC_Mitigate1 ..> AC_BruteForce : <<mitigates>>
+UC_Mitigate2 ..> AC_Fixation : <<mitigates>>
+UC_Mitigate3 ..> AC_JWT : <<mitigates>>
 
 UC_Login <.. AC_BruteForce : <<threatens>>
+UC_Login <.. AC_Fixation : <<threatens>>
+UC_Login <.. AC_JWT : <<threatens>>
 
 AC_BruteForce <-- Attacker
-
+AC_Fixation <-- Attacker
+AC_JWT <-- Attacker
 @enduml

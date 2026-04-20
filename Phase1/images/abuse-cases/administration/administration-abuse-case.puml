@@ -1,6 +1,5 @@
 @startuml
 left to right direction
-
 hide stereotype
 skinparam defaultTextAlignment center
 
@@ -13,26 +12,43 @@ skinparam usecase {
 actor "Administrator" as Admin
 actor "Attacker" as Attacker
 
-usecase "View All Users" as UC_ViewUsers
-usecase "Create User" as UC_CreateUser
-usecase "Deactivate User" as UC_DeactivateUser
-usecase "Assign Role to User" as UC_AssignRole
+usecase "View All Users" as UC_View
+usecase "Assign Role to User" as UC_Assign
+usecase "Update/Delete User" as UC_Delete
+usecase "View Audit Logs" as UC_Audit
 
 usecase "Strict RBAC Verification" as UC_RBAC
+usecase "Data Pagination & Minimization" as UC_Pagination
+usecase "Admin Re-authentication / MFA" as UC_ReAuth
+usecase "Sensitive Field Masking" as UC_Masking
 
-usecase "Privilege Escalation" as AC_Escalation <<Abuse>>
+usecase "Privilege Escalation" as AC_Privilege <<Abuse>>
+usecase "Profile Data Scraping" as AC_Scraping <<Abuse>>
+usecase "Mass Account Lockout" as AC_Lockout <<Abuse>>
+usecase "Admin Account Takeover" as AC_Takeover <<Abuse>>
 
-Admin --> UC_ViewUsers
-Admin --> UC_CreateUser
-Admin --> UC_DeactivateUser
-Admin --> UC_AssignRole
+Admin --> UC_View
+Admin --> UC_Assign
+Admin --> UC_Delete
+Admin --> UC_Audit
 
-UC_AssignRole ..> UC_RBAC : <<includes>>
+UC_Assign ..> UC_RBAC : <<includes>>
+UC_Delete ..> UC_ReAuth : <<includes>>
+UC_View ..> UC_Pagination : <<includes>>
+UC_Audit ..> UC_Masking : <<includes>>
 
-UC_RBAC ..> AC_Escalation : <<mitigates>>
+UC_RBAC ..> AC_Privilege : <<mitigates>>
+UC_Pagination ..> AC_Scraping : <<mitigates>>
+UC_ReAuth ..> AC_Lockout : <<mitigates>>
+UC_ReAuth ..> AC_Takeover : <<mitigates>>
 
-UC_AssignRole <.. AC_Escalation : <<threatens>>
+UC_Assign <.. AC_Privilege : <<threatens>>
+UC_View <.. AC_Scraping : <<threatens>>
+UC_Delete <.. AC_Lockout : <<threatens>>
+UC_Audit <.. AC_Takeover : <<threatens>>
 
-AC_Escalation <-- Attacker
-
+AC_Privilege <-- Attacker
+AC_Scraping <-- Attacker
+AC_Lockout <-- Attacker
+AC_Takeover <-- Attacker
 @enduml
