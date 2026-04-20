@@ -46,6 +46,62 @@
 | **Process:** Credential Management Process | **Denial of Service**      | Brute-force or enumeration requests on credential endpoints saturate the decryption service; repeated malformed ciphertext triggers expensive error paths.                                                                             | ---                                |
 | **Data Flow:** Verify Vault Ownership      | **Elevation of Privilege** | Attacker who compromises one account moves laterally by exfiltrating credentials that grant access to other systems (credential reuse), or exploits missing authorization to read credentials from other users' vaults.                | **Unauthorized Credential Access** |
 
+### Trusted Devices Management
+
+| DFD Element                                      | STRIDE                       | Threats Across Data Flow                                                                                                                                   | Abuse Case                    |
+|--------------------------------------------------|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
+| **External Entity:** User                        | **Spoofing**                 | Attacker steals an active session token (e.g., via Man-in-the-Middle or XSS) and impersonates the user to register their own device as trusted.            | **Rogue Device Registration** |
+| **Data Flow:** Device Management Request         | **Tampering**                | Device registration payload (e.g., device ID, public key, or fingerprint) is modified in transit to alter the device binding.                              | ---                           |
+| **Process:** Trusted Device Management Process   | **Repudiation**              | The registration or removal of a trusted device is not logged, allowing an attacker (or user) to deny that a new device was authorized.                    | ---                           |
+| **Data Store:** Trusted Device (DB)              | **Information Disclosure**   | Device metadata, user associations, or potentially cryptographic material used for trust binding are exposed via insecure API responses or database dumps. | ---                           |
+| **Process:** Trusted Device Management Process   | **Denial of Service**        | Attacker repeatedly sends bogus device registration requests to overwhelm the database or exhaust the maximum allowed devices per user.                    | ---                           |
+| **Process:** Trusted Device Management Process   | **Elevation of Privilege**   | Attacker manipulates the request to bind a device to a different user's account by exploiting an IDOR vulnerability, bypassing standard MFA challenges.    | **Rogue Device Registration** |
+
+### Import Vault
+
+| DFD Element                                       | STRIDE                     | Threats Across Data Flow                                                                                                                                                                    | Abuse Case                |
+|---------------------------------------------------|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
+| **External Entity:** User                         | **Spoofing**               | Attacker uses a stolen session token to upload a credential file into a victim's account, potentially overwriting legitimate data.                                                          | ---                       |
+| **Process:** Validate Imported Data               | **Tampering**              | The uploaded file contains malicious payloads (e.g., XSS in the username fields or Path Traversal characters like ../../../) to manipulate the system or other users when parsed.           | **Malicious File Upload** |
+| **Process:** Log Import Operation                 | **Repudiation**            | The import action is not logged properly, allowing a malicious insider to upload compromised credentials and later deny having performed the action.                                        | ---                       |
+| **Data Store:** Temporary file (OS / File System) | **Information Disclosure** | The temporary file containing unencrypted credentials is saved to the server's disk without strict read/write permissions, allowing other system processes to access it before it is wiped. | ---                       |
+| **Process:** Receive Import File                  | **Denial of Service**      | Attacker uploads a massive file (e.g., a 50GB CSV or a Zip Bomb) to exhaust server memory, CPU during parsing, or disk space.                                                               | **Malicious File Upload** |
+| **Process:** Persist credentials                  | **Elevation of Privilege** | Attacker manipulates the API request parameters alongside the file upload to force the system to import the credentials into a Vault ID they do not own (IDOR vulnerability).               | ---                       |
+
+### Export Vault
+
+| DFD Element                                       | STRIDE                     | Threats Across Data Flow                                                                                                                                                           | Abuse Case                     |
+|---------------------------------------------------|----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------|
+| **External Entity:** User                         | **Spoofing**               | Attacker uses a stolen session token or hijacked session to request a full export of the victim's vault.                                                                           | ---                            |
+| **Data Flow:** Vault Exported                     | **Tampering**              | The exported file is intercepted and modified in transit (e.g., injecting malicious URLs into the credentials) before reaching the user's machine.                                 | ---                            |
+| **Process:** Log Export Operation                 | **Repudiation**            | A massive data exfiltration (vault download) occurs but is not logged, preventing administrators from tracing the data leak back to the compromised account.                       | ---                            |
+| **Data Store:** Temporary file (OS / File System) | **Information Disclosure** | The generated export file containing sensitive credentials is saved to a shared OS directory without strict read restrictions, allowing other internal processes/users to read it. | ---                            |
+| **Process:** Generate Export File                 | **Denial of Service**      | Attacker repeatedly spams the export endpoint, forcing the server to continuously query the database and exhaust CPU/Memory by formatting large export files.                      | ---                            |
+| **Process:** Retrieve Credentials                 | **Elevation of Privilege** | Attacker manipulates the Vault Export Request parameter to specify a Vault ID they do not own (IDOR), bypassing authorization to extract another user's entire vault.              | **Extract Unauthorized Vault** |
+
+### System Audit Log
+
+| DFD Element                     | STRIDE                     | Threats Across Data Flow                                                                                                                   | Abuse Case                |
+|---------------------------------|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
+| **Process:** Write Audit Logs   | **Spoofing**               | Attacker spoofs an internal system service to inject fake log events (e.g., faking a successful login to cover tracks).                    | ---                       |
+| **Data Store:** Audit Logs (DB) | **Tampering**              | A compromised admin or attacker alters, truncates, or deletes existing log entries to hide evidence of malicious activity.                 | **Audit Log Tampering**   |
+| **Process:** Write Audit Logs   | **Repudiation**            | The logging process fails silently or drops events under heavy load, meaning critical system actions are not recorded.                     | ---                       |
+| **Data Store:** Audit Logs (DB) | **Information Disclosure** | The log database inadvertently stores sensitive data (e.g., plaintext passwords or session tokens) and is exposed to unauthorized staff.   | ---                       |
+| **Process:** Write Audit Logs   | **Denial of Service**      | Attacker floods the API with invalid requests to intentionally generate millions of log entries, exhausting disk space (Log Flooding).     | ---                       |
+| **Process:** Write Audit Logs   | **Elevation of Privilege** | Attacker injects executable scripts or malicious payloads into the logs (e.g., similar to Log4Shell) to exploit the log viewing dashboard. | ---                       |
+
+### Secure Wipe Temporary Files
+
+| DFD Element                              | STRIDE                     | Threats Across Data Flow                                                                                                                                                            | Abuse Case |
+|------------------------------------------|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| **Data Flow:** Wipe request              | **Spoofing**               | Attacker spoofs a wipe command to delete the temporary files prematurely, corrupting the ongoing Import/Export operation.                                                           | ---        |
+| **Data Flow:** Secure delete request     | **Tampering**              | The deletion command is intercepted or blocked at the OS level, preventing the actual wipe from executing.                                                                          | ---        |
+| **Data Flow:** Secure wipe event         | **Repudiation**            | The wipe process fails (e.g., due to file locks) but fails to send an error event to the Audit Log, silently leaving sensitive data on disk.                                        | ---        |
+| **Data Store:** Temporary Files          | **Information Disclosure** | Files are deleted using standard OS deletion (removing the pointer) instead of cryptographic secure wiping (overwriting with zeros), allowing data recovery tools to extract them.  | ---        |
+| **Data Store:** Temporary Files          | **Denial of Service**      | Attacker deliberately holds an OS-level lock on the temporary file, causing the secure wipe background job to hang or crash.                                                        | ---        |
+| **Process:** Secure Wipe Temporary Files | **Elevation of Privilege** | Attacker manipulates the file path variable to trick the high-privileged secure wipe process into deleting critical system files instead of the temporary payload (Path Traversal). | ---        |
+
+
 ## Threat Tree Analysis
 
 ### User Authentication
