@@ -103,4 +103,49 @@ Entry points define the interfaces through which potential attackers can interac
 ![Manage Credentials](./images/data-flow-diagrams/manage-credentials/manage-credentials.png)
 
 
+## Risk Assessment
+
+### Methodology
+
+Risk is assessed using the **OWASP Risk Rating Methodology**, combining two dimensions:
+
+- **Likelihood** — how probable it is that the threat is successfully exploited (Low / Medium / High)
+- **Impact** — the potential damage to confidentiality, integrity, availability, or compliance if the threat is realised (Low / Medium / High)
+- **Risk Level** — derived from the combination: Low (L×L), Medium (L×H, M×M, H×L), High (M×H, H×M), Critical (H×H)
+
+### Risk Matrix
+
+| ID | Threat | DFD Area | STRIDE | Likelihood | Impact | Risk Level |
+|----|--------|----------|--------|------------|--------|------------|
+| R01 | Brute Force / Credential Stuffing | User Authentication | Spoofing / DoS | High | High | **Critical** |
+| R02 | JWT Manipulation (Elevation of Privilege) | User Authentication | EoP | Medium | High | **High** |
+| R03 | Credentials exposed in transit or at rest | User Authentication | Tampering / Info Disclosure | Medium | High | **High** |
+| R04 | Privilege Escalation (role manipulation) | User Management | EoP / Tampering | Medium | High | **High** |
+| R05 | IDOR on Credential endpoints | Credential Management | EoP / Info Disclosure | High | High | **Critical** |
+| R06 | Plaintext credential leak (error, logs, dump) | Credential Management | Info Disclosure | Medium | High | **High** |
+| R07 | IDOR on Vault endpoints | Vault Management | Info Disclosure / EoP | High | Medium | **High** |
+| R08 | Malicious File Upload (Path Traversal, Zip Bomb) | Import Vault | Tampering / DoS | High | High | **Critical** |
+| R09 | Temporary file exposed on disk | Import / Export | Info Disclosure | Medium | High | **High** |
+| R10 | IDOR on Export endpoint | Export Vault | EoP | High | High | **Critical** |
+| R11 | Export endpoint abuse (DoS) | Export Vault | DoS | High | Medium | **High** |
+| R12 | Temporary file not securely wiped | Secure Wipe | Info Disclosure | High | High | **Critical** |
+| R13 | Path Traversal in secure wipe process | Secure Wipe | EoP | Medium | High | **High** |
+| R14 | Audit log tampering / deletion | Audit Log | Tampering | Low | High | **Medium** |
+| R15 | Log injection (Log4Shell-like) | Audit Log | EoP | Low | High | **Medium** |
+| R16 | Log flooding (DoS) | Audit Log | DoS | High | Medium | **High** |
+| R17 | Rogue device registration via session hijack | Trusted Devices | Spoofing / EoP | Medium | High | **High** |
+| R18 | Admin actions not logged | User Management | Repudiation | Medium | Medium | **Medium** |
+| R19 | Session hijacking for vault export | Export Vault | Spoofing | Medium | High | **High** |
+| R20 | Wipe failure not logged (data left on disk) | Secure Wipe | Repudiation | Medium | High | **High** |
+
+### Risk Priority Summary
+
+| Risk Level | Count | Threat IDs |
+|------------|-------|------------|
+| **Critical** | 5 | R01, R05, R08, R10, R12 |
+| **High** | 11 | R02, R03, R04, R06, R07, R09, R11, R13, R16, R17, R19, R20 |
+| **Medium** | 4 | R14, R15, R18 |
+| **Low** | 0 | — |
+
+
 From: https://owasp.org/www-community/Threat_Modeling_Process#threat-model-information-sample
