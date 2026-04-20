@@ -22,3 +22,4 @@ The system architecture is based on a **REST API** connected to a **relational d
 | [ThreatIdentification.md](./ThreatIdentification.md) | Threat model information, entry/exit points, assets, trust levels, data flow diagrams, risk assessment, and mitigations |
 | [STRIDE.md](./STRIDE.md) | STRIDE threat analysis per DFD element, abuse case diagrams, threat tree analysis, and threat ranking (DREAD) |
 | [SecurityTestPlan.md](./SecurityTestPlan.md) | Security testing methodology, test categories, and traceability matrix linking security requirements to tests |
+| [ASVS_5.0_Tracker_Kryptos.xlsx](./ASVS_5.0_Tracker_Kryptos.xlsx) | OWASP ASVS 5.0 compliance tracker mapping security controls to project requirements, verification status, and test evidence |
