@@ -38,7 +38,7 @@ The system shall allow authenticated users to view, update, and delete their own
 **FR9 – Credential Association to Services**
 The system shall allow each credential to store authentication-related information associated with a specific service, platform, or website.
 
-**FR10 – Trusted Device Registration**s
+**FR10 – Trusted Device Registration**
 The system shall allow authenticated users to register trusted devices associated with their account.
 
 **FR11 – Trusted Device Management**

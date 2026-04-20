@@ -187,7 +187,7 @@ From: <https://owasp.org/www-community/Threat_Modeling_Process#threat-model-info
 
 ## Mitigations
 
-The following mitigations target the **Critical** and **High** priority threats identified in the Risk Assessment. Mitigations are specific, feasible, and aligned with OWASP best practices.
+The following mitigations target the **Critical**, **High** and **Medium** priority threats identified in the Risk Assessment. Mitigations are specific, feasible, and aligned with OWASP best practices.
 
 ### Critical Threats
 
