@@ -1,1 +1,12 @@
 .idea
+*.iml
+
+# Maven
+backend/target/
+
+# Environment
+.env
+backend/.env
+
+# OS
+.DS_Store
