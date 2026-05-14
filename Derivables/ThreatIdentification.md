@@ -147,28 +147,29 @@ Risk is assessed using the **OWASP Risk Rating Methodology**, combining two dime
 
 ### Risk Matrix
 
-| ID | Threat | DFD Area | STRIDE | Likelihood | Impact | Risk Level |
-|----|--------|----------|--------|------------|--------|------------|
-| R01 | Brute Force / Credential Stuffing | User Authentication | Spoofing / DoS | High | High | **Critical** |
-| R02 | JWT Manipulation (Elevation of Privilege) | User Authentication | EoP | Medium | High | **High** |
-| R03 | Credentials exposed in transit or at rest | User Authentication | Tampering / Info Disclosure | Medium | High | **High** |
-| R04 | Privilege Escalation (role manipulation) | User Management | EoP / Tampering | Medium | High | **High** |
-| R05 | IDOR on Credential endpoints | Credential Management | EoP / Info Disclosure | High | High | **Critical** |
-| R06 | Plaintext credential leak (error, logs, dump) | Credential Management | Info Disclosure | Medium | High | **High** |
-| R07 | IDOR on Vault endpoints | Vault Management | Info Disclosure / EoP | High | Medium | **High** |
-| R08 | Malicious File Upload (Path Traversal, Zip Bomb) | Import Vault | Tampering / DoS | High | High | **Critical** |
-| R09 | Temporary file exposed on disk | Import / Export | Info Disclosure | Medium | High | **High** |
-| R10 | IDOR on Export endpoint | Export Vault | EoP | High | High | **Critical** |
-| R11 | Export endpoint abuse (DoS) | Export Vault | DoS | High | Medium | **High** |
-| R12 | Temporary file not securely wiped | Secure Wipe | Info Disclosure | High | High | **Critical** |
-| R13 | Path Traversal in secure wipe process | Secure Wipe | EoP | Medium | High | **High** |
-| R14 | Audit log tampering / deletion | Audit Log | Tampering | Low | High | **Medium** |
-| R15 | Log injection (Log4Shell-like) | Audit Log | EoP | Low | High | **Medium** |
-| R16 | Log flooding (DoS) | Audit Log | DoS | High | Medium | **High** |
-| R17 | Rogue device registration via session hijack | Trusted Devices | Spoofing / EoP | Medium | High | **High** |
-| R18 | Admin actions not logged | User Management | Repudiation | Medium | Medium | **Medium** |
-| R19 | Session hijacking for vault export | Export Vault | Spoofing | Medium | High | **High** |
-| R20 | Wipe failure not logged (data left on disk) | Secure Wipe | Repudiation | Medium | High | **High** |
+| ID | Threat | Description & Attack Vector | DFD Area | STRIDE | Likelihood | Impact | Risk Level |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **R01** | Brute Force / Credential Stuffing | Attacker uses automated scripts and compromised password dictionaries against the `/api/auth/login` endpoint to hijack legitimate user accounts. | User Authentication | Spoofing / DoS | High | High | **Critical** |
+| **R02** | JWT Manipulation (Elevation of Privilege) | Attacker intercepts a JWT, modifies the `role` payload (e.g., from `user` to `admin`), and exploits weak signature verification (e.g., `none` algorithm) to bypass authorization. | User Authentication | EoP | Medium | High | **High** |
+| **R03** | Credentials exposed in transit or at rest | Lack of enforced TLS or failure to use authenticated encryption (AES-GCM) in the database allows an attacker to intercept or extract plaintext passwords. | User Authentication | Tampering / Info Disclosure | Medium | High | **High** |
+| **R04** | Privilege Escalation (role manipulation) | Attacker manipulates the JSON body of a PUT/POST request to `/api/users` (Mass Assignment) to illicitly grant themselves Administrator privileges. | User Management | EoP / Tampering | Medium | High | **High** |
+| **R05** | IDOR on Credential endpoints | Attacker manipulates the `{id}` parameter in API requests (e.g., `GET /api/credentials/105`) to bypass access controls and extract credentials owned by another user. | Credential Management | EoP / Info Disclosure | High | High | **Critical** |
+| **R06** | Plaintext credential leak (error, logs, dump) | The API inadvertently returns decrypted passwords in error stack traces, JSON responses for list views, or internal application debug logs. | Credential Management | Info Disclosure | Medium | High | **High** |
+| **R07** | IDOR on Vault endpoints | Attacker guesses or enumerates Vault IDs to view metadata, modify, or delete vault containers that belong to other users. | Vault Management | Info Disclosure / EoP | High | Medium | **High** |
+| **R08** | Malicious File Upload (Path Traversal, Zip Bomb) | Attacker uploads a malformed CSV containing `../../../` sequences or massive payloads to execute arbitrary code, overwrite system files, or exhaust RAM. | Import Vault | Tampering / DoS | High | High | **Critical** |
+| **R09** | Temporary file exposed on disk | Unencrypted import/export files are written to the server's OS (e.g., `/tmp`) with permissive default read/write access (`0644`), exposing them to other processes. | Import / Export | Info Disclosure | Medium | High | **High** |
+| **R10** | IDOR on Export endpoint | Attacker manipulates the `vault_id` in the export request, tricking the backend into formatting and downloading another user's entire vault. | Export Vault | EoP | High | High | **Critical** |
+| **R11** | Export endpoint abuse (DoS) | Attacker repeatedly triggers the export function, forcing the database to perform continuous heavy read queries and formatting, exhausting server CPU and Memory. | Export Vault | DoS | High | Medium | **High** |
+| **R12** | Temporary file not securely wiped | The application uses standard OS deletion (`unlink`/`rm`) instead of cryptographic wiping, leaving sensitive credential blocks fully recoverable on the physical SSD. | Secure Wipe | Info Disclosure | High | High | **Critical** |
+| **R13** | Path Traversal in secure wipe process | Attacker injects relative paths into the secure wipe parameter, tricking the highly-privileged wipe process into destroying critical server OS files. | Secure Wipe | EoP | Medium | High | **High** |
+| **R14** | Audit log tampering / deletion | A compromised admin or malicious insider accesses the database to alter timestamps or delete rows, erasing the forensic trail of a breach. | Audit Log | Tampering | Low | High | **Medium** |
+| **R15** | Log injection (Log4Shell-like) | Attacker injects executable scripts or malicious formatting into the `User-Agent` or input fields, which execute when an admin views the logs in the dashboard. | Audit Log | EoP | Low | High | **Medium** |
+| **R16** | Log flooding (DoS) | Attacker intentionally triggers thousands of authentication errors per second to exhaust database disk space and crash the logging system. | Audit Log | DoS | High | Medium | **High** |
+| **R17** | Rogue device registration via session hijack | Attacker uses a stolen session token to register their own device fingerprint as trusted, maintaining persistent access even after the victim resets their password. | Trusted Devices | Spoofing / EoP | Medium | High | **High** |
+| **R18** | Admin actions not logged | System fails to log privilege changes or user deletions, allowing rogue administrators to operate entirely in the shadows. | User Management | Repudiation | Medium | Medium | **Medium** |
+| **R19** | Session hijacking for vault export | Attacker steals an active JWT (via XSS or MitM) and initiates a silent background export of the victim's vault to an attacker-controlled location. | Export Vault | Spoofing | Medium | High | **High** |
+| **R20** | Wipe failure not logged (data left on disk) | The secure wipe catches a file-lock exception but fails to alert administrators, silently leaving the orphaned plaintext file on the server. | Secure Wipe | Repudiation | Medium | High | **High** |
+
 
 ### Risk Priority Summary
 
