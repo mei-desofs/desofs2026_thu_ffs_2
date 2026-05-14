@@ -30,33 +30,29 @@ Entry points define the interfaces through which potential attackers can interac
 
 | ID | Name | Description                                                                                                   | Trust Levels |
 |----|------|---------------------------------------------------------------------------------------------------------------|--------------|
-| 1  | HTTPS Interface | Kryptos is accessed via a secure HTTPS interface. All application features are exposed through this entry point. | (1) Anonymous User <br> (2) Authenticated User <br> (3) Administrator <br> (4) Auditor |
-| 2  | Registration Page | Entry point where new users create an account by submitting personal and authentication data.                 | (1) Anonymous User |
-| 3  | Login Page | Entry point where users provide credentials to authenticate and access the system.                            | (1) Anonymous User <br> (2) Authenticated User <br> (3) Administrator <br> (4) Auditor |
-| 4  | Authentication Function | Processes user credentials, validates them against stored data, and establishes a session.                    | (2) Authenticated User <br> (3) Administrator <br> (4) Auditor |
-| 5  | Vault Management Interface | Allows users to create, edit, and delete vaults used to organize credentials.                                 | (2) Authenticated User |
-| 6  | Credential Management Interface | Allows users to create, view, update, and delete stored credentials.                                          | (2) Authenticated User |
-| 7  | Trusted Device Management | Allows users to associate, view, and remove trusted devices linked to their account or credential access.     | (2) Authenticated User <br> (3) Administrator |
-| 8  | Import Credentials Function | Allows users to upload credential s from local files into the system. Involves file reading and processing.   | (2) Authenticated User |
-| 9  | Export Credentials Function | Allows users to export stored credentials into temporary files on the server. Involves file creation and storage. | (2) Authenticated User |
-| 10 | User Management Interface | Allows administrators to manage users, assign roles, and control account status.                              | (3) Administrator |
-| 11 | Audit Logs Interface | Allows administrators and auditors to view logs of system activities and security-relevant events.            | (3) Administrator <br> (4) Auditor |
+| 1  | HTTPS Interface | Kryptos is accessed via a secure HTTPS API. This singular external entry point exposes all application features, including the endpoints where users submit data to register accounts and provide credentials to authenticate. | (1) Anonymous User <br> (2) Authenticated User <br> (3) Administrator <br> (4) Auditor |
+| 2  | Authentication Function | Processes user credentials, validates them against stored data, and establishes a session.                    | (2) Authenticated User <br> (3) Administrator <br> (4) Auditor |
+| 3  | Vault Management Interface | Allows users to create, edit, and delete vaults used to organize credentials.                                 | (2) Authenticated User |
+| 4  | Credential Management Interface | Allows users to create, view, update, and delete stored credentials.                                          | (2) Authenticated User |
+| 5  | Trusted Device Management | Allows users to associate, view, and remove trusted devices linked to their account or credential access.     | (2) Authenticated User <br> (3) Administrator |
+| 6  | Import Credentials Function | Allows users to upload credential s from local files into the system. Involves file reading and processing.   | (2) Authenticated User |
+| 7  | Export Credentials Function | Allows users to export stored credentials into temporary files on the server. Involves file creation and storage. | (2) Authenticated User |
+| 8 | User Management Interface | Allows administrators to manage users, assign roles, and control account status.                              | (3) Administrator |
+| 9 | Audit Logs Interface | Allows administrators and auditors to view logs of system activities and security-relevant events.            | (3) Administrator <br> (4) Auditor |
 
 ## Exit Points
 
 | ID | Name | Description |
 |----|------|-------------|
-| 1 | HTTPS Responses | All data returned to clients (HTML, JSON, API responses) is sent through HTTPS. Improper output encoding may expose the system to XSS or data leakage. |
-| 2 | Registration Response | Returns success or error messages after account creation. Improper messages may reveal system logic or validation rules. |
-| 3 | Login Response | Returns authentication results (success/failure). Detailed error messages may enable account enumeration or brute-force optimization. |
-| 4 | Authentication Token / Session Creation | Generates and returns session tokens or authentication cookies. Weak handling may lead to session hijacking or leakage. |
-| 5 | Vault Data Output | Returns vault information to the user interface. Improper access control or filtering may expose other users’ data. |
-| 6 | Credential Data Output | Returns stored credentials (potentially sensitive data). Must ensure encryption and proper masking where applicable. |
-| 7 | Trusted Device Data Output | Returns information about trusted devices. Improper exposure may leak device identifiers. |
-| 8 | Imported Data Processing Output | Returns results of credential import (success/failure, parsed data). Errors may expose file structure or parsing logic. |
-| 9 | Exported File Output | Generates files containing credentials and stores them temporarily on disk. Improper handling may lead to sensitive data exposure. |
-| 10 | User Management Responses | Returns results of administrative actions (user creation, role changes). May expose sensitive system or user information if not controlled. |
-| 11 | Audit Log Output | Returns system logs to administrators and auditors. Logs may contain sensitive operational or user data. |
+| 1 | HTTPS Responses | All data returned to clients (HTML, JSON, API responses) is sent through HTTPS. Improper output encoding or error handling may reveal system logic, enable account enumeration, leading to XSS or data leakage. |
+| 3 | Authentication Token / Session Creation | Generates and returns session tokens or authentication cookies. Weak handling may lead to session hijacking or leakage. |
+| 4 | Vault Data Output | Returns vault information to the user interface. Improper access control or filtering may expose other users’ data. |
+| 5 | Credential Data Output | Returns stored credentials (potentially sensitive data). Must ensure encryption and proper masking where applicable. |
+| 6 | Trusted Device Data Output | Returns information about trusted devices. Improper exposure may leak device identifiers. |
+| 7 | Imported Data Processing Output | Returns results of credential import (success/failure, parsed data). Errors may expose file structure or parsing logic. |
+| 8 | Exported File Output | Generates files containing credentials and stores them temporarily on disk. Improper handling may lead to sensitive data exposure. |
+| 9 | User Management Responses | Returns results of administrative actions (user creation, role changes). May expose sensitive system or user information if not controlled. |
+| 10 | Audit Log Output | Returns system logs to administrators and auditors. Logs may contain sensitive operational or user data. |
 
 ## Assets
 
