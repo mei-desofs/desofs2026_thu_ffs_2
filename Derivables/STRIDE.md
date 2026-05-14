@@ -4,103 +4,112 @@
 
 ### User Authentication
 
-| DFD Element                             | STRIDE                     | Threats Across Data Flow                                                                                               | Abuse Case                            |
-|-----------------------------------------|----------------------------|------------------------------------------------------------------------------------------------------------------------|---------------------------------------|
-| **External Entity:** Anonymous User     | **Spoofing**               | Attacker pretends to be a user using stolen credentials, API, or database (e.g., stolen credentials, fake services).   | **Brute Force / Credential Stuffing** |
-| **Data Flow:** Submit Login Credentials | **Tampering**              | Data (credentials, queries, tokens) is modified during transmission or processing.                                     | **Session Fixation**                  |
-| **Process:** Authentication Process     | **Repudiation**            | Actions cannot be traced because of missing or insufficient logging.                                                   | ---                                   |
-| **Data Store:** User DB                 | **Information Disclosure** | Sensitive data (credentials, tokens, hashes) is exposed to unauthorized parties.                                       | ---                                   |
-| **Process:** Authentication Process     | **Denial of Service**      | Login system or database is overwhelmed, making authentication unavailable.                                            | **Brute Force / Credential Stuffing** |
-| **Data Flow:** JWT Token                | **Elevation of Privilege** | Attacker manipulates the token payload to gain higher access (e.g., admin rights) through stolen data or system flaws. | **JWT Manipulation**                  |
+| DFD Element | STRIDE | Threats Across Data Flow | Abuse Case |
+| --- | --- | --- | --- |
+| **External Entity:** Anonymous User | **Spoofing** | Attacker uses automated scripts with leaked password lists to log into victim accounts via the API. | **Brute Force / Credential Stuffing (R01)** |
+| **Data Flow:** JWT Token | **Spoofing** | Attacker steals an active JWT token and replays it to impersonate the user without needing their password. | **Session Hijacking (R19)** |
+| **Data Flow:** Submit Login Credentials | **Tampering** | Attacker intercepts the JSON payload during login and manipulates the requested token scopes or MFA flags. | **Session Fixation** |
+| **Data Store:** User DB | **Tampering** | An attacker who gains internal DB access alters the password hash to a known value to establish a backdoor. | `---` *(Systemic DB Tampering)* |
+| **Process:** Authentication Process | **Repudiation** | Failed login attempts and account lockouts are not logged, preventing admins from detecting brute-force attacks. | `---` |
+| **Data Store:** User DB | **Information Disclosure** | The database is compromised, and because passwords were hashed with MD5 instead of Argon2, they are easily cracked. | **Brute Force / Credential Stuffing (R01)** |
+| **Process:** Authentication Process | **Information Disclosure** | The login API returns different HTTP status codes or messages depending on whether the username exists, allowing account enumeration. | **Account Enumeration** |
+| **Process:** Authentication Process | **Denial of Service** | Attacker floods the `/api/auth/login` endpoint with computationally expensive 50,000-character passwords to exhaust server CPU. | **Log Flooding (DoS) (R16)** |
+| **Data Flow:** JWT Token | **Elevation of Privilege** | Attacker manipulates the `role` claim in the JWT payload from `user` to `admin` and signs it using a weak algorithm. | **JWT Manipulation (R02)** |
 
 ### User Management
 
-| DFD Element                            | STRIDE                     | Threats Across Data Flow                                                                                  | Abuse Case               |
-|----------------------------------------|----------------------------|-----------------------------------------------------------------------------------------------------------|--------------------------|
-| **External Entity:** User              | **Spoofing**               | Attacker impersonates an admin, API, or database (e.g., stolen admin credentials, fake services).         | **Admin Account Takeover** |
-| **Data Flow:** User Management Request | **Tampering**              | User management requests or database queries are modified (e.g., changing roles or permissions).          | ---                        |
-| **Process:** Backend API               | **Repudiation**            | Admin actions cannot be verified due to missing or insufficient logging.                                  | ---                        |
-| **Data Store:** User DB                | **Information Disclosure** | Sensitive user data (e.g., roles, emails) is exposed to unauthorized parties.                             | **Profile Data Scraping**  |
-| **Process:** Backend API               | **Denial of Service**      | User management endpoints or database are overloaded, preventing admin operations.                        | **Mass Account Lockout**   |
-| **Process:** Backend API               | **Elevation of Privilege** | Unauthorized users gain higher roles (e.g., becoming admin) through manipulated requests or system flaws. | **Privilege Escalation** |
+| DFD Element | STRIDE | Threats Across Data Flow | Abuse Case |
+| --- | --- | --- | --- |
+| **External Entity:** User | **Spoofing** | Attacker exploits a session fixation flaw to send forged administrative requests to the `/api/users` endpoints. | **Admin Account Takeover** |
+| **Data Flow:** User Management Request | **Tampering** | Attacker modifies the JSON body of a PUT request to update their own profile, modifying the `role` field (Mass Assignment). | **Privilege Escalation (R04)** |
+| **Data Store:** User DB | **Tampering** | A malicious insider with DB access alters user roles directly in the database, bypassing the application's RBAC checks. | `---` |
+| **Process:** Backend API | **Repudiation** | Admin actions, such as manually changing user roles or deleting accounts, are not recorded in an immutable audit log. | `---` |
+| **Data Store:** User DB | **Information Disclosure** | A GET request to `/api/users` returns excessive data in the JSON response (e.g., password hashes, MFA codes) instead of just public metadata. | **Profile Data Scraping** |
+| **Process:** Backend API | **Information Disclosure** | An attacker uses IDOR on the `/api/users/{id}` endpoint to systematically download the personal details of all registered users. | **Profile Data Scraping** |
+| **Process:** Backend API | **Denial of Service** | Attacker abuses the user creation endpoint by scripting thousands of bogus registrations per minute, exhausting DB connections. | **Mass Account Lockout** |
+| **Process:** Backend API | **Elevation of Privilege** | A regular user sends a POST request to the admin-only `/api/users/{id}/role` endpoint, bypassing broken access controls. | **Privilege Escalation (R04)** |
 
 ### Vault Management
 
-| DFD Element                             | STRIDE                     | Threats Across Data Flow                                                                                                                                                                     | Abuse Case                       |
-|-----------------------------------------|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------|
-| **External Entity:** User               | **Spoofing**               | Attacker impersonates a legitimate user (via stolen JWT, session hijacking, or forged API requests) to access or manipulate vaults that do not belong to them.                               | ---                              |
-| **Data Flow:** Vault Management Request | **Tampering**              | Vault requests are modified in transit to alter names, descriptions, or ownership; attacker rewrites vault records in the database or bypasses ownership checks to edit other users' vaults. | **Vault Metadata Injection**     |
-| **Process:** Vault Management Process   | **Repudiation**            | Vault creation, update, or deletion events are not logged (or are logged without user/device context), allowing a user to deny having performed destructive actions.                         | ---                              |
-| **Data Flow:** Query / Store Vault      | **Information Disclosure** | Vault metadata (names, descriptions, owner identifiers) is exposed to unauthorized users due to missing or incorrect authorization checks (IDOR on `/vaults/{id}`).                          | **Unauthorized Vault Deletion**  |
-| **Process:** Vault Management Process   | **Denial of Service**      | Attacker abuses create/delete endpoints (mass vault creation, cascading deletes) to exhaust storage, saturate database connections, or lock tables.                                          | **Resource Exhaustion**          |
-| **Process:** Vault Management Process   | **Elevation of Privilege** | Attacker bypasses role checks (e.g., uses a Regular User token to call admin-only vault endpoints) to manage vaults belonging to other users.                                                | **Unauthorized Vault Deletion**  |
+| DFD Element | STRIDE | Threats Across Data Flow | Abuse Case |
+| --- | --- | --- | --- |
+| **External Entity:** User | **Spoofing** | Attacker accesses vaults they do not own by guessing or enumerating Vault IDs in the URL (IDOR) using their own valid user token. | **IDOR on Vault Endpoints (R07)** |
+| **Data Flow:** Vault Management Request | **Tampering** | Attacker injects malicious JSON payloads (e.g., NoSQL injection or XSS payloads) into the `vault_name` field. | **Vault Metadata Injection** |
+| **Process:** Vault Management Process | **Tampering** | Attacker sends a vault name exceeding the DB column limit, causing a truncation error that might overwrite another vault's record. | **Vault Metadata Injection** |
+| **Process:** Vault Management Process | **Repudiation** | Vault deletion is not logged with the user's ID and timestamp, allowing a user to destroy a shared vault and deny having done so. | `---` |
+| **Data Flow:** Query / Store Vault | **Information Disclosure** | The API returns all vaults in the system if the `owner_id` filter is manipulated or omitted in the GET request, leaking metadata. | **Unauthorized Vault Deletion** |
+| **Process:** Vault Management Process | **Denial of Service** | Attacker scripts the creation of tens of thousands of empty vaults, exhausting the DB quota and degrading query performance. | **Resource Exhaustion** |
+| **Process:** Vault Management Process | **Elevation of Privilege** | Attacker manipulates the `owner_id` parameter during vault creation to assign the vault to an admin user, bypassing storage quotas. | **Unauthorized Vault Deletion** |
 
 ### Credential Management
 
-| DFD Element                                | STRIDE                     | Threats Across Data Flow                                                                                                                                                                                                               | Abuse Case                         |
-|--------------------------------------------|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------|
-| **External Entity:** User                  | **Spoofing**               | Attacker uses stolen tokens or session cookies to read, modify, or delete credentials stored in another user's vault.                                                                                                                  | **Malicious Deletion**             |
-| **Process:** Credential Management Process | **Tampering**              | Ciphertext is modified in transit or at rest (without authenticated encryption), leading to corrupted credentials that may decrypt into attacker-controlled plaintext; request payloads are tampered with to inject malicious content. | **Credential Tampering**           |
-| **Process:** Credential Management Process | **Repudiation**            | Credential reads (especially decrypted reveals) and modifications are not logged or are logged without sufficient context, allowing a user to deny exfiltration.                                                                       | ---                                |
-| **Data Store:** Credential DB              | **Information Disclosure** | Plaintext credentials leak via error messages, debug logs, memory dumps, or insecure responses; encryption keys are exposed via the key store or application memory; IDOR allows fetching another user's credentials.                  | **Mass Data Exfiltration**         |
-| **Process:** Credential Management Process | **Denial of Service**      | Brute-force or enumeration requests on credential endpoints saturate the decryption service; repeated malformed ciphertext triggers expensive error paths.                                                                             | ---                                |
-| **Data Flow:** Verify Vault Ownership      | **Elevation of Privilege** | Attacker who compromises one account moves laterally by exfiltrating credentials that grant access to other systems (credential reuse), or exploits missing authorization to read credentials from other users' vaults.                | **Unauthorized Credential Access** |
+| DFD Element | STRIDE | Threats Across Data Flow | Abuse Case |
+| --- | --- | --- | --- |
+| **External Entity:** User | **Spoofing** | Attacker exploits a weakness in the vault sharing mechanism to submit credential read/write requests masquerading as the owner. | **Malicious Deletion** |
+| **Process:** Credential Management Process | **Tampering** | Attacker intercepts encrypted ciphertext and flips bits. Without Authenticated Encryption (e.g., AES-GCM), the API stores corrupted data. | **Credential Tampering** |
+| **Process:** Credential Management Process | **Repudiation** | The system fails to log the exact ID of the credential being revealed, making it impossible to audit exfiltrated passwords. | `---` |
+| **Data Store:** Credential DB | **Information Disclosure** | Plaintext credentials leak via verbose API error messages when decryption fails. | **Mass Data Exfiltration / IDOR (R05)** |
+| **Process:** Credential Management Process | **Information Disclosure** | The API response for a "List Credentials" endpoint includes the decrypted passwords in the JSON, instead of returning them masked. | **Mass Data Exfiltration / IDOR (R05)** |
+| **Process:** Credential Management Process | **Denial of Service** | Attacker sends thousands of GET requests for encrypted credentials, exhausting CPU by forcing continuous cryptographic decryption. | `---` |
+| **Data Flow:** Verify Vault Ownership | **Elevation of Privilege** | Attacker modifies the `vault_id` in a POST request to inject a credential into a vault they only have 'Read' access to. | **Unauthorized Credential Access** |
 
 ### Trusted Devices Management
 
-| DFD Element                                      | STRIDE                       | Threats Across Data Flow                                                                                                                                   | Abuse Case                    |
-|--------------------------------------------------|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
-| **External Entity:** User                        | **Spoofing**                 | Attacker steals an active session token (e.g., via Man-in-the-Middle or XSS) and impersonates the user to register their own device as trusted.            | **Rogue Device Registration** |
-| **Data Flow:** Device Management Request         | **Tampering**                | Device registration payload (e.g., device ID, public key, or fingerprint) is modified in transit to alter the device binding.                              | ---                           |
-| **Process:** Trusted Device Management Process   | **Repudiation**              | The registration or removal of a trusted device is not logged, allowing an attacker (or user) to deny that a new device was authorized.                    | ---                           |
-| **Data Store:** Trusted Device (DB)              | **Information Disclosure**   | Device metadata, user associations, or potentially cryptographic material used for trust binding are exposed via insecure API responses or database dumps. | ---                           |
-| **Process:** Trusted Device Management Process   | **Denial of Service**        | Attacker repeatedly sends bogus device registration requests to overwhelm the database or exhaust the maximum allowed devices per user.                    | **Unauthorized Device Removal** |
-| **Process:** Trusted Device Management Process   | **Elevation of Privilege**   | Attacker manipulates the request to bind a device to a different user's account by exploiting an IDOR vulnerability, bypassing standard MFA challenges.    | **Rogue Device Registration** |
+| DFD Element | STRIDE | Threats Across Data Flow | Abuse Case |
+| --- | --- | --- | --- |
+| **External Entity:** User | **Spoofing** | Attacker steals a session token and registers a rogue device fingerprint, allowing persistent access even after password changes. | **Rogue Device Registration (R17)** |
+| **Data Flow:** Device Management Request | **Tampering** | Attacker modifies the public key or device identifier in the registration payload, causing a mismatch that locks the user out of MFA. | `---` |
+| **Process:** Trusted Device Management Process | **Repudiation** | Registration of a new trusted device occurs without sending an out-of-band notification (email alert) to the legitimate user. | `---` |
+| **Data Store:** Trusted Device (DB) | **Information Disclosure** | The API endpoint returns sensitive exact device fingerprints, OS versions, or IPs that can be used to target the user with exploits. | `---`  |
+| **Process:** Trusted Device Management Process | **Denial of Service** | Attacker registers the maximum allowed number of dummy devices for a target user, preventing them from registering a real device. | **Unauthorized Device Removal** |
+| **Process:** Trusted Device Management Process | **Elevation of Privilege** | Attacker exploits an IDOR on the device deletion endpoint to unregister an Administrator's trusted devices, forcing MFA fallback. | **Rogue Device Registration (R17)** |
 
 ### Import Vault
 
-| DFD Element                                       | STRIDE                     | Threats Across Data Flow                                                                                                                                                                    | Abuse Case                |
-|---------------------------------------------------|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
-| **External Entity:** User                         | **Spoofing**               | Attacker uses a stolen session token to upload a credential file into a victim's account, potentially overwriting legitimate data.                                                          | ---                       |
-| **Process:** Validate Imported Data               | **Tampering**              | The uploaded file contains malicious payloads (e.g., XSS in the username fields or Path Traversal characters like ../../../) to manipulate the system or other users when parsed.           | **Malicious File Upload** |
-| **Process:** Log Import Operation                 | **Repudiation**            | The import action is not logged properly, allowing a malicious insider to upload compromised credentials and later deny having performed the action.                                        | ---                       |
-| **Data Store:** Temporary file (OS / File System) | **Information Disclosure** | The temporary file containing unencrypted credentials is saved to the server's disk without strict read/write permissions, allowing other system processes to access it before it is wiped. | ---                       |
-| **Process:** Receive Import File                  | **Denial of Service**      | Attacker uploads a massive file (e.g., a 50GB CSV or a Zip Bomb) to exhaust server memory, CPU during parsing, or disk space.                                                               | **Malicious File Upload** |
-| **Process:** Persist credentials                  | **Elevation of Privilege** | Attacker manipulates the API request parameters alongside the file upload to force the system to import the credentials into a Vault ID they do not own (IDOR vulnerability).               | ---                       |
+| DFD Element | STRIDE | Threats Across Data Flow | Abuse Case |
+| --- | --- | --- | --- |
+| **External Entity:** User | **Spoofing** | Attacker uses a hijacked JWT to access the import endpoint and injects a malicious credential file directly into the victim's vault. | **Malicious File Upload (R08)** |
+| **Process:** Validate Imported Data | **Tampering** | Attacker uploads a CSV containing Path Traversal characters (`../../../`) in the filename to overwrite system files. | **Malicious File Upload (R08)** |
+| **Process:** Validate Imported Data | **Tampering** | Attacker injects malicious SQL or script payloads within the CSV credential fields to exploit the backend parser. | **Malicious File Upload (R08)** |
+| **Process:** Log Import Operation | **Repudiation** | The system imports 500 credentials but only logs "Import Successful", masking which specific malicious entries were created. | `---` |
+| **Data Store:** Temporary file (OS / File System) | **Information Disclosure** | The uploaded file is stored temporarily in `/tmp` with default `0644` permissions, allowing other OS processes to read the plaintext. | `---` |
+| **Process:** Receive Import File | **Denial of Service** | Attacker uploads a massive 5GB CSV file or Zip Bomb, exhausting server RAM during the parsing process. | **Malicious File Upload (R08)** |
+| **Data Store:** Temporary file (OS / File System) | **Denial of Service** | Attacker uploads thousands of small files concurrently, exhausting the inodes or disk space on the ephemeral storage volume. | `---` |
+| **Process:** Persist credentials | **Elevation of Privilege** | Attacker manipulates the form data to specify a `target_vault_id` they do not own, injecting their credentials into an admin's vault. | **Malicious File Upload (R08)** |
 
 ### Export Vault
 
-| DFD Element                                       | STRIDE                     | Threats Across Data Flow                                                                                                                                                           | Abuse Case                     |
-|---------------------------------------------------|----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------|
-| **External Entity:** User                         | **Spoofing**               | Attacker uses a stolen session token or hijacked session to request a full export of the victim's vault.                                                                           | ---                            |
-| **Data Flow:** Vault Exported                     | **Tampering**              | The exported file is intercepted and modified in transit (e.g., injecting malicious URLs into the credentials) before reaching the user's machine.                                 | ---                            |
-| **Process:** Log Export Operation                 | **Repudiation**            | A massive data exfiltration (vault download) occurs but is not logged, preventing administrators from tracing the data leak back to the compromised account.                       | ---                            |
-| **Data Store:** Temporary file (OS / File System) | **Information Disclosure** | The generated export file containing sensitive credentials is saved to a shared OS directory without strict read restrictions, allowing other internal processes/users to read it. | **Export Data Leakage**        |
-| **Process:** Generate Export File                 | **Denial of Service**      | Attacker repeatedly spams the export endpoint, forcing the server to continuously query the database and exhaust CPU/Memory by formatting large export files.                      | ---                            |
-| **Process:** Retrieve Credentials                 | **Elevation of Privilege** | Attacker manipulates the Vault Export Request parameter to specify a Vault ID they do not own (IDOR), bypassing authorization to extract another user's entire vault.              | **Extract Unauthorized Vault** |
+| DFD Element | STRIDE | Threats Across Data Flow | Abuse Case |
+| --- | --- | --- | --- |
+| **External Entity:** User | **Spoofing** | Attacker leverages a hijacked JWT to silently trigger a full background export of the victim's vault to a temporary file. | **Session Hijacking for Vault Export (R19)** |
+| **Data Flow:** Vault Exported | **Tampering** | Attacker intercepts the stream of the exported file over a misconfigured HTTP connection to inject malicious URLs into the entries. | `---` |
+| **Process:** Log Export Operation | **Repudiation** | A mass export of a user's entire vault is not flagged or alerted in the audit logs, leaving no forensic trail of the data exfiltration. | `---` |
+| **Data Store:** Temporary file (OS / File System) | **Information Disclosure** | The exported temporary file is generated with predictable filenames in a publicly accessible web directory, allowing arbitrary downloads. | **Export Data Leakage** |
+| **Process:** Generate Export File | **Information Disclosure** | The exported file is generated as a plaintext CSV instead of an encrypted archive, exposing passwords in transit and at rest on the client. | **Export Data Leakage** |
+| **Process:** Generate Export File | **Denial of Service** | Attacker repeatedly calls the `/api/vaults/export` endpoint, forcing the DB to perform heavy reads and exhausting memory formatting files. | **Export Endpoint Abuse (DoS) (R11)** |
+| **Process:** Retrieve Credentials | **Elevation of Privilege** | Attacker changes the `vault_id` in the export GET request. The API fails to verify ownership (IDOR), exporting another user's vault. | **IDOR on Export Endpoint (R10)** |
 
 ### System Audit Log
 
-| DFD Element                     | STRIDE                     | Threats Across Data Flow                                                                                                                   | Abuse Case                |
-|---------------------------------|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
-| **Process:** Write Audit Logs   | **Spoofing**               | Attacker spoofs an internal system service to inject fake log events (e.g., faking a successful login to cover tracks).                    | ---                       |
-| **Data Store:** Audit Logs (DB) | **Tampering**              | A compromised admin or attacker alters, truncates, or deletes existing log entries to hide evidence of malicious activity.                 | **Audit Log Tampering**   |
-| **Process:** Write Audit Logs   | **Repudiation**            | The logging process fails silently or drops events under heavy load, meaning critical system actions are not recorded.                     | ---                       |
-| **Data Store:** Audit Logs (DB) | **Information Disclosure** | The log database inadvertently stores sensitive data (e.g., plaintext passwords or session tokens) and is exposed to unauthorized staff.   | ---                       |
-| **Process:** Write Audit Logs   | **Denial of Service**      | Attacker floods the API with invalid requests to intentionally generate millions of log entries, exhausting disk space (Log Flooding).     | ---                       |
-| **Process:** Write Audit Logs   | **Elevation of Privilege** | Attacker injects executable scripts or malicious payloads into the logs (e.g., similar to Log4Shell) to exploit the log viewing dashboard. | **Log Injection / False Trails** |
+| DFD Element | STRIDE | Threats Across Data Flow | Abuse Case |
+| --- | --- | --- | --- |
+| **Process:** Write Audit Logs | **Spoofing** | Attacker spoofs the internal IP of the API gateway to send forged log events directly to the internal logging service. | **Log Injection / False Trails (R15)** |
+| **Data Store:** Audit Logs (DB) | **Tampering** | An attacker with DB access modifies timestamps or drops rows in the `audit_logs` table to erase evidence of a breach. | **Audit Log Tampering / Deletion (R14)** |
+| **Process:** Write Audit Logs | **Repudiation** | The logging service drops events under heavy API load (fire-and-forget), resulting in critical security actions being permanently lost. | `---` |
+| **Data Store:** Audit Logs (DB) | **Information Disclosure** | The API logs raw HTTP request payloads, inadvertently storing plaintext passwords or valid JWT tokens in the database. | `---` |
+| **Process:** Write Audit Logs | **Denial of Service** | Attacker intentionally triggers thousands of auth failures per second to fill the database disk space and crash the logging system. | **Log Flooding (DoS) (R16)** |
+| **Process:** Write Audit Logs | **Elevation of Privilege** | Attacker injects a payload (like Log4Shell) into the `User-Agent` header, which executes when an admin views the logs. | **Log Injection (Log4Shell-like) (R15)** |
 
 ### Secure Wipe Temporary Files
 
-| DFD Element                              | STRIDE                     | Threats Across Data Flow                                                                                                                                                            | Abuse Case |
-|------------------------------------------|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| **Data Flow:** Wipe request              | **Spoofing**               | Attacker spoofs a wipe command to delete the temporary files prematurely, corrupting the ongoing Import/Export operation.                                                           | ---        |
-| **Data Flow:** Secure delete request     | **Tampering**              | The deletion command is intercepted or blocked at the OS level, preventing the actual wipe from executing.                                                                          | ---        |
-| **Data Flow:** Secure wipe event         | **Repudiation**            | The wipe process fails (e.g., due to file locks) but fails to send an error event to the Audit Log, silently leaving sensitive data on disk.                                        | ---        |
-| **Data Store:** Temporary Files          | **Information Disclosure** | Files are deleted using standard OS deletion (removing the pointer) instead of cryptographic secure wiping (overwriting with zeros), allowing data recovery tools to extract them.  | ---        |
-| **Data Store:** Temporary Files          | **Denial of Service**      | Attacker deliberately holds an OS-level lock on the temporary file, causing the secure wipe background job to hang or crash.                                                        | ---        |
-| **Process:** Secure Wipe Temporary Files | **Elevation of Privilege** | Attacker manipulates the file path variable to trick the high-privileged secure wipe process into deleting critical system files instead of the temporary payload (Path Traversal). | ---        |
-
+| DFD Element | STRIDE | Threats Across Data Flow | Abuse Case |
+| --- | --- | --- | --- |
+| **Data Flow:** Wipe request | **Spoofing** | Attacker intercepts the internal command to trigger the wipe process and substitutes a different file path, preventing the wipe. | `---` |
+| **Data Flow:** Secure delete request | **Tampering** | Attacker removes execution permissions on the secure wipe utility at the OS level, causing the application to fall back to insecure `rm`. | `---` |
+| **Data Flow:** Secure wipe event | **Repudiation** | The secure wipe function catches an `IOException` but fails to alert the monitoring system, leaving the admin unaware of the orphaned file. | `---` |
+| **Data Store:** Temporary Files | **Information Disclosure** | The system uses standard OS deletion. The data remains intact on physical disk blocks, allowing data recovery with forensic tools. | `---` |
+| **Data Store:** Temporary Files | **Denial of Service** | Attacker holds a mandatory OS-level file lock on the temporary file. The API's background wipe thread blocks indefinitely. | `---` |
+| **Process:** Secure Wipe Temp Files | **Elevation of Privilege** | Attacker manipulates the file path passed to the secure wipe function via Path Traversal (`../../etc/passwd`) to destroy system files. | `---` |
 
 ## Abuse Case Diagrams
 
