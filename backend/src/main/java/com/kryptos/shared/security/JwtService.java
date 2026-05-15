@@ -1,15 +1,18 @@
 package com.kryptos.shared.security;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.function.Function;
+
+import javax.crypto.SecretKey;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 
 @Service
 public class JwtService {
@@ -21,30 +24,55 @@ public class JwtService {
     private long expiration;
 
     public String generateToken(String username, String role) {
-        // TODO
-        return null;
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + expiration);
+
+        return Jwts.builder()
+                .subject(username)
+                .claim("role", role)
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(getSigningKey(), Jwts.SIG.HS256)
+                .compact();
     }
 
     public String extractUsername(String token) {
-        // TODO
-        return null;
+        return extractClaim(token, Claims::getSubject);
     }
 
     public boolean isTokenValid(String token, String username) {
-        // TODO
-        return false;
+        try {
+            String tokenUsername = extractUsername(token);
+            return username != null
+                    && username.equals(tokenUsername)
+                    && !isTokenExpired(token);
+        } catch (JwtException | IllegalArgumentException ex) {
+            return false;
+        }
     }
 
     private SecretKey getSigningKey() {
+        // HS256 requires at least 256-bit key (32 bytes).
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("jwt.secret must be at least 32 bytes");
+        }
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     private Claims extractAllClaims(String token) {
-        // TODO
-        return null;
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     private <T> T extractClaim(String token, Function<Claims, T> resolver) {
         return resolver.apply(extractAllClaims(token));
+    }
+
+    private boolean isTokenExpired(String token) {
+        Date exp = extractClaim(token, Claims::getExpiration);
+        return exp.before(new Date());
     }
 }

@@ -9,7 +9,7 @@
 | **External Entity:** Anonymous User | **Spoofing** | Attacker uses automated scripts with leaked password lists to log into victim accounts via the API. | **Brute Force / Credential Stuffing (R01)** |
 | **Data Flow:** JWT Token | **Spoofing** | Attacker steals an active JWT token and replays it to impersonate the user without needing their password. | **Session Hijacking (R19)** |
 | **Data Flow:** Submit Login Credentials | **Tampering** | Attacker intercepts the JSON payload during login and manipulates the requested token scopes or MFA flags. | **Session Fixation** |
-| **Data Store:** User DB | **Tampering** | An attacker who gains internal DB access alters the password hash to a known value to establish a backdoor. | `---` *(Systemic DB Tampering)* |
+| **Data Store:** User DB | **Tampering** | An attacker who gains internal DB access alters the password hash to a known value to establish a backdoor. | `---` |
 | **Process:** Authentication Process | **Repudiation** | Failed login attempts and account lockouts are not logged, preventing admins from detecting brute-force attacks. | `---` |
 | **Data Store:** User DB | **Information Disclosure** | The database is compromised, and because passwords were hashed with MD5 instead of Argon2, they are easily cracked. | **Brute Force / Credential Stuffing (R01)** |
 | **Process:** Authentication Process | **Information Disclosure** | The login API returns different HTTP status codes or messages depending on whether the username exists, allowing account enumeration. | **Account Enumeration** |
