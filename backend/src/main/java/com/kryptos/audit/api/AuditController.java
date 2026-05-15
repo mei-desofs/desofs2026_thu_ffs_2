@@ -21,4 +21,10 @@ public class AuditController {
     public ResponseEntity<Page<AuditLog>> findAll(Pageable pageable) {
         return ResponseEntity.ok(auditLogRepository.findAll(pageable));
     }
+
+    @GetMapping("/action/{action}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'AUDITOR')")
+    public ResponseEntity<Page<AuditLog>> findByAction(@PathVariable String action, Pageable pageable) {
+        return ResponseEntity.ok(auditLogRepository.findAllByAction(action, pageable));
+    }
 }

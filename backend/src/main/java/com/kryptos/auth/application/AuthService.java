@@ -8,6 +8,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.kryptos.audit.application.AuditService;
+import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.auth.application.dto.AuthResponse;
 import com.kryptos.auth.application.dto.LoginRequest;
 import com.kryptos.auth.application.dto.RegisterRequest;
@@ -26,6 +28,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final AuditService auditService;
 
     private final ConcurrentHashMap<String, Integer> loginAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> lockouts = new ConcurrentHashMap<>();
@@ -48,7 +51,9 @@ public class AuthService {
         userRepository.save(user);
         
         String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
-        
+
+        auditService.log(AuditAction.REGISTER, request.username(), "auth", "User registered");
+
         return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
     }
 
@@ -56,6 +61,7 @@ public class AuthService {
         String cacheKey = request.username(); 
 
         if (lockouts.containsKey(cacheKey) && lockouts.get(cacheKey).isAfter(Instant.now())) {
+            auditService.log(AuditAction.LOGIN_FAILED, request.username(), "auth", "Account locked due to too many failed attempts");
             throw new RuntimeException("Too many failed attempts. Try again later."); 
         }
 
@@ -67,17 +73,20 @@ public class AuthService {
             loginAttempts.remove(cacheKey);
             lockouts.remove(cacheKey);
 
-            // Fetching specifically by username since that's what the DTO provides
             var user = userRepository.findByUsername(request.username())
                     .orElseThrow();
                     
             String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
-            
+
+            auditService.log(AuditAction.LOGIN, request.username(), "auth", "Successful login");
+
             return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
 
         } catch (Exception e) {
             int attempts = loginAttempts.getOrDefault(cacheKey, 0) + 1;
             loginAttempts.put(cacheKey, attempts);
+
+            auditService.log(AuditAction.LOGIN_FAILED, request.username(), "auth", "Invalid credentials (attempt " + attempts + ")");
             
             if (attempts >= MAX_ATTEMPTS) {
                 lockouts.put(cacheKey, Instant.now().plusSeconds(900)); 

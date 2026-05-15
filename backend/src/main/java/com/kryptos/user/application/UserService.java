@@ -4,8 +4,11 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import com.kryptos.audit.application.AuditService;
+import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.shared.exception.ForbiddenException;
 import com.kryptos.shared.exception.ResourceNotFoundException;
 import com.kryptos.user.application.dto.UserResponse;
@@ -19,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final AuditService auditService;
 
     public List<UserResponse> findAll() {
         return userRepository.findAll().stream()
@@ -41,8 +45,14 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        String adminUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        String targetUsername = user.getUsername();
+
         user.setActive(false);
         userRepository.save(user);
+
+        auditService.log(AuditAction.USER_DELETE, adminUsername, "user",
+                "Deactivated user: " + targetUsername + " (id: " + id + ")");
     }
 
     private UserResponse mapToResponse(User user) {
