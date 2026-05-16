@@ -58,40 +58,37 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        String cacheKey = request.username(); 
+        String providedId = request.username();
+        
+        String cacheKey = userRepository.findByUsername(providedId)
+                .or(() -> userRepository.findByEmail(providedId))
+                .map(User::getUsername)
+                .orElse(providedId); 
 
         if (lockouts.containsKey(cacheKey) && lockouts.get(cacheKey).isAfter(Instant.now())) {
-            auditService.log(AuditAction.LOGIN_FAILED, request.username(), "auth", "Account locked due to too many failed attempts");
-            throw new RuntimeException("Too many failed attempts. Try again later."); 
+            throw new com.kryptos.shared.exception.RateLimitExceededException("Too many failed attempts. Try again later."); 
         }
 
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.username(), request.password()) 
+                    new UsernamePasswordAuthenticationToken(providedId, request.password())
             );
 
             loginAttempts.remove(cacheKey);
             lockouts.remove(cacheKey);
 
-            var user = userRepository.findByUsername(request.username())
-                    .orElseThrow();
-                    
+            var user = userRepository.findByUsername(cacheKey).orElseThrow();
             String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
-
-            auditService.log(AuditAction.LOGIN, request.username(), "auth", "Successful login");
-
+            
             return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
 
         } catch (Exception e) {
             int attempts = loginAttempts.getOrDefault(cacheKey, 0) + 1;
             loginAttempts.put(cacheKey, attempts);
-
-            auditService.log(AuditAction.LOGIN_FAILED, request.username(), "auth", "Invalid credentials (attempt " + attempts + ")");
             
             if (attempts >= MAX_ATTEMPTS) {
                 lockouts.put(cacheKey, Instant.now().plusSeconds(900)); 
             }
-            
             throw new IllegalArgumentException("Invalid credentials");
         }
     }

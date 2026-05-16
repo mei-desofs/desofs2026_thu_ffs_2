@@ -12,6 +12,7 @@ import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.shared.exception.ForbiddenException;
 import com.kryptos.shared.exception.ResourceNotFoundException;
 import com.kryptos.user.application.dto.UserResponse;
+import com.kryptos.user.domain.Role;
 import com.kryptos.user.domain.User;
 import com.kryptos.user.domain.UserRepository;
 
@@ -53,6 +54,23 @@ public class UserService {
 
         auditService.log(AuditAction.USER_DELETE, adminUsername, "user",
                 "Deactivated user: " + targetUsername + " (id: " + id + ")");
+    }
+
+    public UserResponse updateUserRole(UUID userId, Role newRole) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        
+        user.setRole(newRole);
+        userRepository.save(user);
+        return mapToResponse(user);
+    }
+
+    public UserResponse activateUser(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        user.setActive(true);
+        userRepository.save(user);
+        return mapToResponse(user);
     }
 
     private UserResponse mapToResponse(User user) {
