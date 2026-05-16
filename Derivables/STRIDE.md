@@ -11,7 +11,7 @@
 | **Data Flow:** Submit Login Credentials | **Tampering** | Attacker intercepts the JSON payload during login and manipulates the requested token scopes or MFA flags. | **Session Fixation** |
 | **Data Store:** User DB | **Tampering** | An attacker who gains internal DB access alters the password hash to a known value to establish a backdoor. | `---` |
 | **Process:** Authentication Process | **Repudiation** | Failed login attempts and account lockouts are not logged, preventing admins from detecting brute-force attacks. | `---` |
-| **Data Store:** User DB | **Information Disclosure** | The database is compromised, and because passwords were hashed with MD5 instead of Argon2, they are easily cracked. | **Brute Force / Credential Stuffing (R01)** |
+| **Data Store:** User DB | **Information Disclosure** | The database is compromised and passwords are easily cracked. | **Brute Force / Credential Stuffing (R01)** |
 | **Process:** Authentication Process | **Information Disclosure** | The login API returns different HTTP status codes or messages depending on whether the username exists, allowing account enumeration. | **Account Enumeration** |
 | **Process:** Authentication Process | **Denial of Service** | Attacker floods the `/api/auth/login` endpoint with computationally expensive 50,000-character passwords to exhaust server CPU. | **Log Flooding (DoS) (R16)** |
 | **Data Flow:** JWT Token | **Elevation of Privilege** | Attacker manipulates the `role` claim in the JWT payload from `user` to `admin` and signs it using a weak algorithm. | **JWT Manipulation (R02)** |
