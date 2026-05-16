@@ -165,6 +165,7 @@
                     <formats>
                         <format>HTML</format>
                         <format>JSON</format>
+                        <format>XML</format>
                     </formats>
                     <outputDirectory>${project.build.directory}</outputDirectory>
                     <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
