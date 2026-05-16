@@ -46,7 +46,7 @@ class FileHandlingServiceTest {
         ReflectionTestUtils.setField(service, "tempDir", tempDir.toString());
         ReflectionTestUtils.invokeMethod(service, "initTempDir");
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("tester", "n/a",
+                new UsernamePasswordAuthenticationToken("testuser", "n/a",
                         List.of(new SimpleGrantedAuthority("ROLE_USER"))));
     }
 
