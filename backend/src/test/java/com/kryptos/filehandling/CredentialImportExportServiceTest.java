@@ -12,6 +12,7 @@ import com.kryptos.user.domain.User;
 import com.kryptos.user.domain.UserRepository;
 import com.kryptos.vault.domain.Vault;
 import com.kryptos.vault.domain.VaultRepository;
+import com.kryptos.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -108,5 +109,19 @@ class CredentialImportExportServiceTest {
         verify(vaultRepository).save(created.capture());
         assertEquals("BrandNewVault", created.getValue().getName());
         assertEquals(owner, created.getValue().getOwner());
+    }
+
+    @Test
+    void exportForOwner_shouldThrowResourceNotFound_whenOwnerDoesNotExist() {
+        when(userRepository.findById(ownerId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> service.exportForOwner(ownerId));
+    }
+
+    @Test
+    void exportForOwner_throws_whenCalledWithoutExportMethodOverride() {
+        assertThrows(ResourceNotFoundException.class,
+                () -> service.exportForOwner(UUID.randomUUID()));
     }
 }

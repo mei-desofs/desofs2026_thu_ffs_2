@@ -10,6 +10,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -99,5 +100,15 @@ class FileHandlingServiceTest {
         String name = stored.getFileName().toString();
         assertThat(name).startsWith("import-").endsWith(".kvault");
         assertThat(name).doesNotContain("..").doesNotContain("/");
+    }
+
+    @Test
+    @DisplayName("R08 — storeUpload rejects files larger than 5 MiB")
+    void storeUpload_shouldRejectOversizeFile() {
+        int oversized = 5 * 1024 * 1024 + 1;
+        byte[] content = new byte[oversized];
+        IOException ex = assertThrows(IOException.class,
+                () -> service.storeUpload(content, "large.kvault"));
+        assertThat(ex.getMessage()).containsIgnoringCase("large");
     }
 }

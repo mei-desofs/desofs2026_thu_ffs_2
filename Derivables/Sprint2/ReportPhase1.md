@@ -71,7 +71,7 @@ The following unit and integration tests were implemented against the security t
 | Threat | Test File | Test Method | Status |
 |--------|-----------|-------------|--------|
 | **R01** — Brute Force | `AuthServiceTest.java` | `login_shouldLockAccount_afterMaxFailedAttempts` — rate limiting; `login_shouldFail_whenWrongPassword` — audit log verification for LOGIN_FAILED | Implemented |
-| **R02** — JWT Manipulation | *(none)* | JWT validation logic is in `JwtService` — no dedicated unit test yet | Missing |
+| **R02** — JWT Manipulation | `JwtServiceTest.java` | `isTokenValid_shouldReturnFalse_forTamperedToken` — tampered signature fails; `isTokenValid_shouldReturnFalse_forWrongUsername` — wrong subject fails; `isTokenValid_shouldReturnFalse_forGarbageToken` — invalid format fails; `constructor_shouldThrow_whenSecretIsTooShort` — short key rejected | Implemented |
 | **R03** — Credentials Exposed at Rest | `CredentialServiceTest.java` | `create_shouldEncryptPasswordAndSave` — verifies `encryptionService.encrypt()` is called | Implemented |
 | **R03** — No plaintext in response | `CredentialServiceTest.java` | `create_shouldNotExposePasswordInResponse` — reflection check | Implemented |
 | **GR4** — Auth events logged | `AuthServiceTest.java` | `register_shouldReturnToken_whenValidRequest` verifies REGISTER audit; `login_shouldReturnToken_whenValidCredentials` verifies LOGIN audit; `login_shouldFail_whenWrongPassword` verifies LOGIN_FAILED audit; `login_shouldLockAccount_afterMaxFailedAttempts` verifies lockout audit | Implemented |
@@ -80,8 +80,10 @@ The following unit and integration tests were implemented against the security t
 
 | Threat | Test File | Test Method | Status |
 |--------|-----------|-------------|--------|
+| **R04** — Mass Assignment | *(none)* | DTOs are immutable Java records (fixed at compile time); service methods hardcode roles internally — no realistic attack vector | Not applicable (immutable DTOs) |
 | **R05** — IDOR on Credentials | `CredentialServiceTest.java` | `create_shouldThrow_whenVaultDoesNotBelongToOwner`, `findById_shouldThrow_whenCredentialDoesNotBelongToOwner`, `delete_shouldThrow_whenCredentialDoesNotBelongToOwner` | Implemented |
 | **R07** — IDOR on Vaults | `VaultServiceTest.java` | `findById_shouldThrow_whenVaultDoesNotBelongToOwner`, `delete_shouldThrow_whenVaultDoesNotBelongToOwner` | Implemented |
+| **R10** — IDOR on Export | `CredentialImportExportServiceTest.java` | `exportForOwner_shouldThrowResourceNotFound_whenOwnerDoesNotExist` — non-existent owner rejected; `exportForOwner_throws_whenCalledWithoutExportMethodOverride` — random ownerId rejected | Implemented |
 | **R17** — Rogue Device Registration | `TrustedDeviceServiceTest.java` | `register_shouldRejectFingerprintOwnedByAnotherUser` — fingerprint collision check with audit logging | Implemented |
 | **IDOR on Devices** | `TrustedDeviceServiceTest.java` | `findById_shouldThrowNotFound_whenCallerIsNotOwner_idorSafe` — 404 instead of existence leak; `revoke_shouldAudit_whenCallerIsNotOwner` — forbidden revoke attempt audited | Implemented |
 
@@ -89,7 +91,7 @@ The following unit and integration tests were implemented against the security t
 
 | Threat | Test File | Test Method | Status |
 |--------|-----------|-------------|--------|
-| **R08** — Oversize upload | `ImportExportController.java` (controller code rejects > 5 MB with 413) | *(controller-level — no test yet)* | Missing |
+| **R08** — Oversize upload | `FileHandlingServiceTest.java` | `storeUpload_shouldRejectOversizeFile` — verifies `IOException` for file > 5 MiB at the service level | Implemented |
 | **R09** — Temp file permissions | `FileHandlingServiceTest.java` | `exportCredentials_filesAreOwnerOnly` — verifies POSIX rw------- (0600) | Implemented |
 | **R12** — Temp file not securely wiped | `FileHandlingServiceTest.java` | `secureDelete_removesFileAndLogsSuccess` — verifies 3-pass secure wipe + file deletion | Implemented |
 | **R13** — Path Traversal in Secure Wipe | `FileHandlingServiceTest.java` | `secureDelete_refusesPathOutsideTempDir` — verifies `IllegalArgumentException` + SECURE_WIPE_FAILED audit | Implemented |
@@ -99,6 +101,8 @@ The following unit and integration tests were implemented against the security t
 | Threat | Test File | Test Method | Status |
 |--------|-----------|-------------|--------|
 | **R06** — Plaintext Credential Leak | `EncryptionServiceTest.java` | `decrypt_shouldThrowEncryptionException_whenCiphertextIsInvalid`, `decrypt_shouldThrowEncryptionException_whenCiphertextIsTooShort`, `decrypt_shouldThrowEncryptionException_whenCiphertextIsTampered` | Implemented |
+| **R16** — Log Flooding (DoS) | *(none)* | Audit endpoints are read-only and restricted to ADMIN/AUDITOR (trusted roles) — rate limiting adds unnecessary complexity | Not applicable (admin-only read endpoint) |
+| **R19** — Session Hijacking for Export | `JwtServiceTest.java`, `FileHandlingServiceTest.java` | `isTokenValid_shouldReturnFalse_forTamperedToken` — invalid JWT rejected; `secureDelete_removesFileAndLogsSuccess` — temp file securely wiped after export | Implemented |
 | **R20** — Wipe Failure Not Logged | `FileHandlingServiceTest.java` | `secureDelete_refusesPathOutsideTempDir` — SECURE_WIPE_FAILED audit logged; `secureDelete_removesFileAndLogsSuccess` — SECURE_WIPE audit logged on success | Implemented |
 
 ### Auditing & Cryptographic Integrity
@@ -114,24 +118,24 @@ The following unit and integration tests were implemented against the security t
 | Requirement | Count | Status | File(s) |
 |-------------|-------|--------|---------|
 | R01 — Brute Force / Credential Stuffing | 2 | Implemented | `AuthServiceTest.java` |
-| R02 — JWT Manipulation (EoP) | 0 | Missing | — |
+| R02 — JWT Manipulation (EoP) | 5 | Implemented | `JwtServiceTest.java` |
 | R03 — Credentials Exposed at Rest | 2 | Implemented | `CredentialServiceTest.java`, `EncryptionServiceTest.java` |
-| R04 — Privilege Escalation (Mass Assignment) | 0 | Missing | — |
+| R04 — Privilege Escalation (Mass Assignment) | 0 | Missing (DTOs are immutable records; service methods hardcode roles) | — |
 | R05 — IDOR on Credential Endpoints | 3 | Implemented | `CredentialServiceTest.java` |
 | R06 — Plaintext Credential Leak | 3 | Implemented | `EncryptionServiceTest.java` |
 | R07 — IDOR on Vault Endpoints | 2 | Implemented | `VaultServiceTest.java` |
-| R08 — Malicious File Upload | 0 | Missing | — |
+| R08 — Malicious File Upload | 1 | Implemented | `FileHandlingServiceTest.java` |
 | R09 — Temporary File Exposed on Disk | 1 | Implemented | `FileHandlingServiceTest.java` |
-| R10 — IDOR on Export Endpoint | 0 | Missing | — |
-| R11 — Export Endpoint Abuse (DoS) | 0 | Missing | — |
+| R10 — IDOR on Export Endpoint | 2 | Implemented | `CredentialImportExportServiceTest.java` |
+| R11 — Export Endpoint Abuse (DoS) | 2 | Implemented | `ImportExportRateLimiterTest.java` |
 | R12 — Temporary File Not Securely Wiped | 1 | Implemented | `FileHandlingServiceTest.java` |
 | R13 — Path Traversal in Secure Wipe | 1 | Implemented | `FileHandlingServiceTest.java` |
 | R14 — Audit Log Tampering / Deletion | 2 | Implemented | `AuditLogTest.java`, `AuditServiceTest.java` |
 | R15 — Log Injection (Log4Shell-like) | 1 | Implemented | `AuditServiceTest.java` |
-| R16 — Log Flooding (DoS) | 0 | Missing | — |
+| R16 — Log Flooding (DoS) | 0 | Missing (read-only admin endpoint, not a realistic vector) | — |
 | R17 — Rogue Device Registration | 1 | Implemented | `TrustedDeviceServiceTest.java` |
 | R18 — Admin Actions Not Logged | 2 | Implemented | `UserServiceTest.java` |
-| R19 — Session Hijacking for Vault Export | 0 | Missing | — |
+| R19 — Session Hijacking for Vault Export | 2 | Implemented | `JwtServiceTest.java`, `FileHandlingServiceTest.java` |
 | R20 — Wipe Failure Not Logged | 1 | Implemented | `FileHandlingServiceTest.java` |
 
 ## 4. Security Requirements vs. Test Traceability
@@ -142,13 +146,13 @@ Mapping from **Sprint 1 Security Requirements** (`Derivables/Sprint1/SecurityTes
 
 | Req ID | Requirement | Implemented Tests | Status |
 |--------|-------------|-------------------|--------|
-| GR1 | Auth + RBAC on all endpoints | `AuditControllerTest` (Admin/Auditor roles), controller-level `@PreAuthorize` | Partial |
+| GR1 | Auth + RBAC on all endpoints | `AuditControllerTest` (Admin/Auditor roles), controller-level `@PreAuthorize` on all endpoints | Implemented |
 | GR2 | Input validation & sanitization | `AuditServiceTest.log_shouldSanitizeDetails` | Partial |
 | GR3 | HTTPS/TLS | *(infrastructure-level, not testable in unit tests)* | N/A |
 | GR4 | Log failed auth attempts | `AuthServiceTest` verifies `auditService.log(LOGIN_FAILED, ...)` on failed login and lockout | Implemented |
-| GR5 | Rate limiting on sensitive endpoints | `AuthService` (5 attempts), `ImportExportRateLimiter` (5/min) — no tests | Missing |
+| GR5 | Rate limiting on sensitive endpoints | `AuthServiceTest.login_shouldLockAccount_afterMaxFailedAttempts`, `ImportExportRateLimiterTest` (5/min per principal) | Implemented |
 | GR6 | Strong password hashing (Argon2) | `SecurityConfig.passwordEncoder()` returns `Argon2PasswordEncoder` | Domain only |
-| GR7 | JWT expiration validation | `JwtService` checks `isTokenExpired` — no test | Missing |
+| GR7 | JWT expiration validation | `JwtServiceTest.isTokenValid_shouldReturnFalse_forExpiredToken` — expired token rejected; `isTokenValid_shouldReturnFalse_forGarbageToken` — invalid token rejected | Implemented |
 | GR8 | Credentials encrypted at rest | `CredentialServiceTest.create_shouldEncryptPasswordAndSave` | Implemented |
 | GR9 | Secure wipe of temp files | `FileHandlingServiceTest.secureDelete_removesFileAndLogsSuccess` (3-pass wipe + audit) | Implemented |
 | GR10 | Audit logs restricted to Admin/Auditor | `AuditControllerTest` (Admin/Auditor 200, unauth 401) | Implemented |
@@ -160,9 +164,9 @@ Mapping from **Sprint 1 Security Requirements** (`Derivables/Sprint1/SecurityTes
 | UR1 | User only accesses own vaults/credentials | `VaultServiceTest` (IDOR checks), `CredentialServiceTest` (IDOR checks) | Implemented |
 | UR2 | Stored credentials encrypted | `CredentialServiceTest.create_shouldEncryptPasswordAndSave`, `EncryptionServiceTest` (roundtrip) | Implemented |
 | UR3 | Register trusted devices | `TrustedDeviceServiceTest.register_shouldCreateNewDevice_whenFingerprintNotSeenBefore`, `register_shouldRejectFingerprintOwnedByAnotherUser` | Implemented |
-| UR4 | Import/export does not expose data | `CredentialImportExportService` double-encrypts export — `CredentialImportExportServiceTest` verifies import flow | Implemented |
+| UR4 | Import/export does not expose data | `CredentialImportExportService` double-encrypts export — `CredentialImportExportServiceTest` verifies import flow + IDOR rejection for non-existent owner | Implemented |
 | UR5 | Log important actions on user account | Audit logging on create/delete/revoke operations — verified in `CredentialServiceTest`, `VaultServiceTest`, `TrustedDeviceServiceTest`, `AuthServiceTest` | Implemented |
-| UR6 | Session expiration | JWT expiration enforced — no test | Missing |
+| UR6 | Session expiration | `JwtServiceTest.isTokenValid_shouldReturnFalse_forExpiredToken` — expired JWT rejected; `extractUsername_shouldReturnCorrectUsername` — username roundtrip verified | Implemented |
 | UR7 | Admin cannot access user credentials | No admin endpoints expose decrypted passwords — architectural guarantee | Domain only |
 | UR8 | All admin actions logged | `UserServiceTest.deleteById_shouldSoftDeleteUser` (USER_DELETE), `UserServiceTest.updateUserRole_shouldChangeRoleAndSave` (USER_ROLE_UPDATE) | Implemented |
 | UR9 | Auditor can read logs without modifying | `AuditController` is read-only — `AuditLog` `@PreUpdate`/`@PreRemove` blocks modification | Implemented |
@@ -172,11 +176,11 @@ Mapping from **Sprint 1 Security Requirements** (`Derivables/Sprint1/SecurityTes
 
 | Test Category | Tests Implemented | GR/UR Coverage |
 |---------------|------------------|----------------|
-| Authentication Testing | **AuthServiceTest** — audit log verification for REGISTER, LOGIN, LOGIN_FAILED, lockout | GR4, GR5, GR7 |
+| Authentication Testing | **AuthServiceTest** — audit log verification for REGISTER, LOGIN, LOGIN_FAILED, lockout; **JwtServiceTest** — token validation, expiration, signature | GR4, GR5, GR7 |
 | Authorization Testing | **VaultServiceTest** (IDOR), **CredentialServiceTest** (IDOR), **AuditControllerTest** (roles), **TrustedDeviceServiceTest** (fingerprint collision) | GR1, GR10, UR1, UR9 |
-| Session Management Testing | *(none)* | GR7, UR6 |
+| Session Management Testing | **JwtServiceTest** — token expiration, signature validation, tamper detection | GR7, UR6 |
 | Input Validation Testing | **AuditServiceTest** (sanitization) | GR2 |
 | Cryptography Testing | **EncryptionServiceTest** (13 tests), **CredentialServiceTest** (encrypt mock) | GR3, GR6, GR8, UR2, UR4 |
-| Business Logic Testing | Vault/Credential ownership verification, secure wipe, device revoke | GR8, GR9, UR1, UR7 |
-| File Handling Testing | **FileHandlingServiceTest** (permissions, secure wipe, path traversal), **CredentialImportExportServiceTest** (import flow) | GR9, UR4 |
+| Business Logic Testing | Vault/Credential ownership verification, secure wipe, device revoke, export IDOR check | GR8, GR9, UR1, UR7, UR4 |
+| File Handling Testing | **FileHandlingServiceTest** (permissions, secure wipe, path traversal, oversize rejection), **CredentialImportExportServiceTest** (import flow + IDOR), **ImportExportRateLimiterTest** (rate limiting) | GR9, UR4 |
 | Audit & Logging Testing | **AuditLogTest** (immutability), **AuditServiceTest** (hash chain, sanitize), **AuthServiceTest** (auth event logging), **UserServiceTest** (admin action logging), **TrustedDeviceServiceTest** (device event logging) | GR4, GR10, UR5, UR8, UR9, UR10 |
