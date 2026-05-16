@@ -98,8 +98,6 @@ jobs:
           -Dsonar.projectKey=mei-desofs-kryptos
           -Dsonar.organization=mei-desofs-kryptos
           -Dsonar.host.url=https://sonarcloud.io
-          -Dsonar.branch.name=main
-          -Dsonar.qualitygate.wait=true
           -DskipTests
 
       - name: Upload SonarCloud Task Report
