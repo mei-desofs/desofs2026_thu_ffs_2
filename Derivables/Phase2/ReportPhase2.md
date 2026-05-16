@@ -145,3 +145,69 @@ file-handling module for import/export.
   user / vault / credential / device list endpoints).
 
 ---
+
+## 3. Test Plan Execution
+
+`mvn verify` builds **97 unit and slice tests** across 15 test classes.
+
+| Test class                              | Tests | Layer covered                                            |
+|-----------------------------------------|-------|----------------------------------------------------------|
+| `AuthServiceTest`                       | 5     | Register / login / lockout / failed-login audit          |
+| `UserServiceTest`                       | 5     | Role update, soft delete, admin-action audit             |
+| `VaultServiceTest`                      | 6     | CRUD + IDOR (`findById`, `delete`)                       |
+| `VaultControllerTest`                   | 9     | MockMvc — auth, validation, 201/204/401                  |
+| `CredentialServiceTest`                 | 9     | CRUD, encryption, IDOR (3 paths), no-plaintext-in-response |
+| `CredentialControllerTest`              | 9     | MockMvc — auth, validation, 201/204/400/401              |
+| `TrustedDeviceServiceTest`              | 6     | Register, fingerprint collision, IDOR, revoke, rename     |
+| `FileHandlingServiceTest`               | 5     | Permissions, secure wipe, path traversal, oversize, sanitised filename |
+| `CredentialImportExportServiceTest`     | 5     | Empty payload, malformed lines, auto-vault, owner-not-found |
+| `ImportExportRateLimiterTest`           | 2     | Token bucket — 5/min, per-principal isolation             |
+| `AuditServiceTest`                      | 5     | Hash chain, sanitization, null/empty details              |
+| `AuditControllerTest`                   | 5     | RBAC — ADMIN/AUDITOR 200, anon 401                       |
+| `AuditLogTest`                          | 4     | `@PreUpdate` / `@PreRemove` throw, `@PrePersist` timestamps |
+| `EncryptionServiceTest`                 | 13    | Roundtrip, tampering, short ciphertext, blank secret      |
+| `JwtServiceTest`                        | 9     | Tampered, expired, garbage, wrong user, short secret      |
+| **Total**                               | **97** | |
+
+### Threat-to-test traceability (Sprint 1 `ThreatIdentification.md`)
+
+| Risk | Mitigation                                                  | Test evidence                                                                                                  | Status         |
+|------|-------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|----------------|
+| **R01** Brute force                | 5 attempts → 15 min lockout                | `AuthServiceTest.login_shouldLockAccount_afterMaxFailedAttempts`                                               | Covered        |
+| **R02** JWT manipulation           | HS256 + signature/exp checks in `JwtService` | `JwtServiceTest` — tampered (1), garbage (1), wrong user (1), expired (1), short secret (1)                  | Covered        |
+| **R03** Credentials at rest        | Argon2 + AES-GCM                            | `CredentialServiceTest.create_shouldEncryptPasswordAndSave` + `EncryptionServiceTest` (13)                    | Covered        |
+| **R04** Mass assignment            | DTO whitelist — `RegisterRequest` and `UpdateRoleRequest` have no extra fields; role endpoint is ADMIN-only | Design-immune (DTOs reject unknown fields; `PATCH /role` requires ADMIN)                                       | Design-immune  |
+| **R05** IDOR on credentials        | Vault-ownership check on every op           | `CredentialServiceTest.create/findById/delete_shouldThrow_whenCredentialDoesNotBelongToOwner` (3)             | Covered        |
+| **R06** Plaintext leak in errors   | Generic exception messages; `EncryptionException` | `EncryptionServiceTest.decrypt_shouldThrow…` (3 — tampered, short, invalid)                              | Covered        |
+| **R07** IDOR on vaults             | Owner-scoped repository queries             | `VaultServiceTest.findById/delete_shouldThrow_whenVaultDoesNotBelongToOwner` (2)                              | Covered        |
+| **R08** Malicious upload           | UUID rename + extension whitelist; 5 MiB cap → 413 at controller | `FileHandlingServiceTest.storeUpload_sanitisesFilename` + `storeUpload_shouldRejectOversizeFile`         | Covered        |
+| **R09** Temp file 0644             | `0700` dir + `0600` files                   | `FileHandlingServiceTest.exportCredentials_filesAreOwnerOnly`                                                 | Covered        |
+| **R10** IDOR on export             | Endpoint takes no `vault_id` — always exports the caller's data | n/a (impossible to exploit by design)                                                                          | Design-immune  |
+| **R11** Export DoS                 | `ImportExportRateLimiter` 5/min/principal → 429 | `ImportExportRateLimiterTest.tryAcquireExport_allowsFivePerMinute_thenThrottles`                          | Covered        |
+| **R12** No secure wipe             | 3-pass overwrite (random × 2 + zero)        | `FileHandlingServiceTest.secureDelete_removesFileAndLogsSuccess`                                              | Covered        |
+| **R13** Path traversal in wipe     | `verifyWithinTempDir` → `IllegalArgumentException` | `FileHandlingServiceTest.secureDelete_refusesPathOutsideTempDir`                                         | Covered        |
+| **R14** Audit log tampering        | `AuditLog @PreUpdate / @PreRemove` throw    | `AuditLogTest.onPreUpdate/onPreRemove_shouldThrowUnsupportedOperationException` + `AuditServiceTest.log_shouldBuildHashChain` | Covered |
+| **R15** Log injection              | CRLF / control chars stripped in `AuditService.sanitize` | `AuditServiceTest.log_shouldSanitizeDetails`                                                          | Covered        |
+| **R16** Log flooding (DoS)         | Append-only DB writes; rate-limit on auth attempts | *(infra-level — load test out of unit-test scope)*                                                       | **Missing**    |
+| **R17** Rogue device               | Fingerprint collision rejected with 403 + audit | `TrustedDeviceServiceTest.register_shouldRejectFingerprintOwnedByAnotherUser`                            | Covered        |
+| **R18** Admin actions not logged   | `UserService.deleteById / updateUserRole` write audit | `UserServiceTest.deleteById_shouldSoftDeleteUser` (audit verified via `verify(auditService).log(...)`) + `updateUserRole_shouldChangeRoleAndSave` (asserts `USER_ROLE_UPDATE` action) | Covered |
+| **R19** Session hijack export      | JWT expiry enforced; export rate-limit       | `JwtServiceTest.isTokenValid_shouldReturnFalse_forExpiredToken` (+ R11 rate-limit test)                       | Covered        |
+| **R20** Wipe failure not logged    | `SECURE_WIPE_FAILED` audit emitted before throw | `FileHandlingServiceTest.secureDelete_refusesPathOutsideTempDir` (verifies the audit call)                | Covered        |
+
+**Coverage summary:** Covered: 17 · Design-immune: 2 · Missing: 1 (R16,
+load-test scope).
+
+### Test coverage by category
+
+| Test category               | Test classes                                                                                                  | GR / UR mapping              |
+|-----------------------------|---------------------------------------------------------------------------------------------------------------|------------------------------|
+| Authentication              | `AuthServiceTest` (LOGIN, LOGIN_FAILED, lockout audit)                                                        | GR4, GR5                     |
+| Session management          | `JwtServiceTest` — expiry, signature, tampering, wrong user                                                   | GR7, UR6                     |
+| Authorization               | `VaultServiceTest`, `CredentialServiceTest`, `TrustedDeviceServiceTest` (IDOR); `AuditControllerTest` (roles) | GR1, GR10, UR1, UR9          |
+| Input validation            | DTO `@Valid` exercised in `VaultControllerTest` / `CredentialControllerTest`; `AuditServiceTest.log_shouldSanitizeDetails` | GR2                  |
+| Cryptography                | `EncryptionServiceTest` (13), `CredentialServiceTest` (encrypt mock)                                          | GR6, GR8, UR2, UR4           |
+| Business logic              | Vault / credential ownership, device revoke, secure wipe                                                      | UR1, UR7, GR9                |
+| File handling & OS          | `FileHandlingServiceTest` (permissions, wipe, traversal, oversize); `CredentialImportExportServiceTest`; `ImportExportRateLimiterTest` | GR9, UR4 |
+| Audit & logging             | `AuditLogTest` (immutability), `AuditServiceTest` (hash chain), `AuthServiceTest`, `UserServiceTest`, `TrustedDeviceServiceTest` | GR4, GR10, UR5, UR8, UR9, UR10 |
+
+---
