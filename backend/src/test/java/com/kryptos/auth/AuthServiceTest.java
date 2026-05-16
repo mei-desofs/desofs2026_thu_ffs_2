@@ -12,8 +12,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,6 +26,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.kryptos.audit.application.AuditService;
+import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.auth.application.AuthService;
 import com.kryptos.auth.application.dto.AuthResponse;
 import com.kryptos.auth.application.dto.LoginRequest;
@@ -77,6 +80,7 @@ class AuthServiceTest {
         assertEquals("USER", response.role());
         
         verify(userRepository).save(any(User.class));
+        verify(auditService).log(eq(AuditAction.REGISTER), eq("UserTest"), eq("auth"), any());
     }
 
     @Test
@@ -102,6 +106,7 @@ class AuthServiceTest {
         
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
         verify(jwtService).generateToken("UserTest", "USER");
+        verify(auditService).log(eq(AuditAction.LOGIN), eq("UserTest"), eq("auth"), any());
     }
 
     @Test
@@ -116,6 +121,7 @@ class AuthServiceTest {
                 
         assertEquals("Invalid credentials", ex.getMessage());
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
+        verify(auditService).log(eq(AuditAction.LOGIN_FAILED), eq("UserTest"), eq("auth"), any());
     }
 
     @Test
@@ -133,5 +139,6 @@ class AuthServiceTest {
                 () -> authService.login(request));
                 
         assertTrue(ex.getMessage().contains("Too many failed attempts"));
+        verify(auditService, atLeast(5)).log(eq(AuditAction.LOGIN_FAILED), eq("UserTest"), eq("auth"), any());
     }
 }

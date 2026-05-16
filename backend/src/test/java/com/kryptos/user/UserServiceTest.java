@@ -25,6 +25,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.kryptos.audit.application.AuditService;
+import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.shared.exception.ForbiddenException;
 import com.kryptos.user.application.UserService;
 import com.kryptos.user.application.dto.UserResponse;
@@ -113,5 +114,6 @@ class UserServiceTest {
         assertEquals(Role.ADMIN, targetUser.getRole());
         assertEquals(Role.ADMIN, response.role());
         verify(userRepository).save(targetUser);
+        verify(auditService).log(eq(AuditAction.USER_ROLE_UPDATE), eq("admin_user"), eq("user"), any());
     }
 }

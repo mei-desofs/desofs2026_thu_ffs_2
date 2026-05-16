@@ -60,8 +60,11 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
+        String adminUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         user.setRole(newRole);
         userRepository.save(user);
+        auditService.log(AuditAction.USER_ROLE_UPDATE, adminUsername, "user",
+                "Updated role for user: " + user.getUsername() + " (id: " + userId + ") to " + newRole);
         return mapToResponse(user);
     }
 
