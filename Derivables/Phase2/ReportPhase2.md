@@ -211,3 +211,68 @@ load-test scope).
 | Audit & logging             | `AuditLogTest` (immutability), `AuditServiceTest` (hash chain), `AuthServiceTest`, `UserServiceTest`, `TrustedDeviceServiceTest` | GR4, GR10, UR5, UR8, UR9, UR10 |
 
 ---
+
+## 4. ASVS v5 Compliance
+
+`Derivables/Sprint2/ASVS_5.0_Tracker_Kryptos.xlsx` is the authoritative
+source. The tracker was re-evaluated end-to-end this sprint against the
+actual code and tests; every status change is documented in the
+`Observations` and `Reference / Link` columns of the relevant chapter sheet.
+
+| Status         | Count   | % of total (345) |
+|----------------|---------|------------------|
+| Compliant      | **108** | 31.3 %           |
+| In Progress    | **37**  | 10.7 %           |
+| Not Started    | **47**  | 13.6 %           |
+| Not Applicable | **153** | 44.3 %           |
+
+Of the 192 in-scope controls (excluding Not Applicable), 108 are Compliant
+(56.3 %). Per-chapter Compliant counts:
+
+| Chapter                                          | L1 | L2 | L3 | Total |
+|--------------------------------------------------|----|----|----|-------|
+| V1 — Encoding & Sanitization                     | 4  | 11 | 2  | 17    |
+| V2 — Validation & Business Logic                 | 3  | 3  | 1  | 7     |
+| V4 — API and Web Service                         | 1  | 2  | 4  | 7     |
+| V5 — File Handling                               | 4  | 3  | 3  | 10    |
+| V6 — Authentication                              | 7  | 4  | 0  | 11    |
+| V7 — Session Management                          | 3  | 3  | 0  | 6     |
+| V8 — Authorization                               | 2  | 1  | 1  | 4     |
+| V9 — Self-contained Tokens                       | 4  | 1  | 0  | 5     |
+| V10 — OAuth and OIDC                             | 2  | 3  | 0  | 5     |
+| V11 — Cryptography                               | 3  | 7  | 6  | 16    |
+| V13 — Configuration                              | 1  | 9  | 2  | 12    |
+| V14 — Data Protection                            | 0  | 1  | 0  | 1     |
+| V15 — Secure Coding & Architecture               | 1  | 3  | 1  | 5     |
+| V16 — Security Logging & Error Handling          | 0  | 2  | 0  | 2     |
+| **Total**                                        | **35** | **53** | **20** | **108** |
+
+The 37 In Progress controls cluster around documentation artefacts and a
+handful of small hardening items that the engineering implementation
+already partially supports:
+
+```
+V2  Validation & Business Logic         4 (V2.1.1, V2.1.2, V2.1.3, V2.3.2 — input/limits docs)
+V4  API and Web Service                 1 (V4.1.4 — explicit HTTP method allowlist)
+V5  File Handling                       1 (V5.1.1 — upload-feature matrix)
+V6  Authentication                      1 (V6.1.1 — anti-automation policy doc)
+V7  Session Management                  1 (V7.1.1 — session timeout doc)
+V8  Authorization                       3 (V8.1.1, V8.1.2, V8.3.2 — authz docs + role-change delay)
+V9  Self-contained Tokens               1 (V9.2.3 — add JWT aud claim)
+V11 Cryptography                        3 (V11.1.2, V11.4.4 covered; V11.6.1 → KDF hardening)
+V12 Secure Communication                2 (V12.2.1, V12.3.2 — TLS termination + JDBC sslmode)
+V13 Configuration                       4 (V13.1.1, V13.2.2, V13.3.1, V13.4.6 — db least-priv, secret vault, Server header)
+V14 Data Protection                     7 (V14.1.1, V14.1.2, V14.2.1, V14.2.3, V14.2.4, V14.2.7, V14.2.8 — classification & retention docs)
+V15 Secure Coding & Architecture        3 (V15.1.2 SBOM, V15.1.3 resource-intensive doc, V15.2.1 SCA gating)
+V16 Security Logging & Error Handling   7 (V16.1.1 logging inventory; V16.2.1, V16.2.2, V16.3.1–V16.3.4 metadata/event docs)
+```
+
+The remaining 47 `Not Started` controls fall into three buckets: missing
+features that are genuinely out of scope for Sprint 2 (password
+self-service, MFA, password-reset flow, login notifications, admin session
+termination, formal cryptographic-policy and key-management documentation,
+TLS termination configuration in deployment, antivirus on uploads, log
+shipping to a separate system, OAuth/OIDC controls if we ever adopt them,
+and the L3 adaptive-security / per-message signature items).
+
+---
