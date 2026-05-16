@@ -1,6 +1,5 @@
-package com.kryptos.audit;
+package com.kryptos.audit.application;
 
-import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditLog;
 import com.kryptos.audit.domain.AuditLogRepository;
 import org.junit.jupiter.api.Test;
@@ -80,4 +79,29 @@ class AuditServiceTest {
         assertFalse(saved.getDetails().contains("\r"));
         assertFalse(saved.getDetails().contains("\0"));
     }
+
+    @Test
+    void log_shouldHandleNullDetails() {
+        when(auditLogRepository.findFirstByOrderByTimestampDesc()).thenReturn(Optional.empty());
+
+        auditService.log("LOGIN", "user1", "auth", null);
+
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(captor.capture());
+
+        assertNull(captor.getValue().getDetails());
+    }
+
+    @Test
+    void log_shouldHandleEmptyDetails() {
+        when(auditLogRepository.findFirstByOrderByTimestampDesc()).thenReturn(Optional.empty());
+
+        auditService.log("LOGIN", "user1", "auth", "");
+
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(captor.capture());
+
+        assertEquals("", captor.getValue().getDetails());
+    }
+
 }

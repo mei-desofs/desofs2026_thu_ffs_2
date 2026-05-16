@@ -16,11 +16,13 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 @Service
-public class EncryptionService {
+public final class EncryptionService {
 
     private static final String ALGORITHM = "AES/GCM/NoPadding";
     private static final int IV_LENGTH = 12;
     private static final int TAG_LENGTH = 128;
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final SecretKey key;
 
@@ -43,8 +45,7 @@ public class EncryptionService {
         }
         try {
             byte[] iv = new byte[IV_LENGTH];
-            SecureRandom secureRandom = new SecureRandom();
-            secureRandom.nextBytes(iv);
+            SECURE_RANDOM.nextBytes(iv);
 
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH, iv));
