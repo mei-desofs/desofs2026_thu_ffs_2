@@ -86,3 +86,62 @@ misconfigured environment cannot silently fall back to insecure defaults.
 | dast | `dast-app-logs`           | plain text logs        |
 
 ---
+
+## 2. Domain Functionality
+
+The Kryptos backend follows **Domain-Driven Design (DDD)** with four main
+aggregates, a secure authentication layer, an immutable audit log, and a
+file-handling module for import/export.
+
+### Aggregates & core domain
+
+| Aggregate          | Entity          | Key fields                                                                | Purpose                                           |
+|--------------------|-----------------|---------------------------------------------------------------------------|---------------------------------------------------|
+| **User**           | `User`          | id, username, email, password (Argon2), role, active                       | Account management with RBAC                      |
+| **Vault**          | `Vault`         | id, name, description, owner                                              | Logical grouping of credentials per user          |
+| **Credential**     | `Credential`    | id, serviceName, username, encryptedPassword (AES-GCM), url, notes, vault | Secure credential storage with encryption at rest |
+| **Trusted Device** | `TrustedDevice` | id, deviceName, deviceFingerprint, registeredAt, active, user             | Device registration for access control            |
+| **Audit Log**      | `AuditLog`      | id, action, performedBy, targetResource, details, timestamp, hash, previousHash | Append-only forensic trail                    |
+
+### Services, controllers & authorization
+
+| Bounded context | Service                                                                        | Controller                | Endpoints                                                                                                                                                | `@PreAuthorize`                                  |
+|-----------------|--------------------------------------------------------------------------------|---------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+| Auth            | `AuthService` — register/login with rate limiting (5 attempts → 15 min lockout) | `AuthController`          | `POST /api/auth/register`<br>`POST /api/auth/login`                                                                                                       | Public (`/api/auth/**` permitted in `SecurityConfig`) |
+| User            | `UserService` — CRUD, role update, activate/deactivate                          | `UserController`          | `GET /api/users`<br>`GET /api/users/{id}`<br>`DELETE /api/users/{id}`<br>`PATCH /api/users/{id}/role`<br>`PATCH /api/users/{id}/activate`                  | `GET /{id}`: ADMIN or USER (self)<br>others: ADMIN |
+| Vault           | `VaultService` — CRUD with ownership validation                                 | `VaultController`         | `POST /api/vaults`<br>`GET /api/vaults`<br>`GET /api/vaults/{id}`<br>`DELETE /api/vaults/{id}`                                                            | USER                                             |
+| Credential      | `CredentialService` — CRUD with vault-ownership checks, password encryption     | `CredentialController`    | `POST /api/credentials`<br>`GET /api/credentials/vault/{vaultId}`<br>`GET /api/credentials/{id}`<br>`DELETE /api/credentials/{id}`                        | USER                                             |
+| Trusted Device  | `TrustedDeviceService` — register (idempotent), list, update, revoke            | `TrustedDeviceController` | `POST /api/devices`<br>`GET /api/devices`<br>`GET /api/devices/{id}`<br>`PUT /api/devices/{id}`<br>`DELETE /api/devices/{id}`                              | USER                                             |
+| Audit           | `AuditService` — write with SHA-256 hash chaining and CRLF sanitization         | `AuditController`         | `GET /api/audit` (paginated)<br>`GET /api/audit/action/{action}` (paginated)                                                                              | ADMIN or AUDITOR                                 |
+| File Handling   | `CredentialImportExportService` + `FileHandlingService` + `ImportExportRateLimiter` | `ImportExportController`  | `POST /api/credentials/import`<br>`GET /api/credentials/export`                                                                                          | USER                                             |
+
+### Cross-cutting security
+
+- **Password hashing:** Argon2 via `Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8()`.
+- **Encryption at rest:** AES-256/GCM/NoPadding with a fresh random 12-byte
+  IV per credential and a 128-bit GCM tag (`EncryptionService`). The key is
+  derived from `ENCRYPTION_SECRET` via SHA-256 once, at startup.
+- **JWT authentication:** HS256 with key length validated at sign/verify
+  time (`getSigningKey` throws `IllegalStateException` if `JWT_SECRET` is
+  shorter than 32 bytes). `JwtAuthFilter` validates every request; sessions
+  are stateless (`SessionCreationPolicy.STATELESS`).
+- **HTTP security headers:** strict CSP, HSTS with `includeSubDomains` and
+  one-year `max-age`, `X-Frame-Options: DENY` (`SecurityConfig`).
+- **Audit log integrity:** SHA-256 hash chain (`previousHash` ← prior
+  entry's `hash`); JPA `@PreUpdate` / `@PreRemove` callbacks on `AuditLog`
+  throw `UnsupportedOperationException` so updates and deletes are blocked
+  at the ORM layer.
+- **Secure file handling:** files stored in an isolated temp directory
+  (`kryptos.storage.temp-dir`) with `rwx------` (0700) directory permissions
+  and `rw-------` (0600) per-file permissions; path-traversal prevention via
+  `verifyWithinTempDir`; secure wipe with 3 passes (2× random + 1× zero
+  fill) before OS deletion; 5 MiB file size cap returning **HTTP 413** at
+  the controller; 50 000 line record limit at the service.
+- **Rate limiting:** login endpoint (5 attempts/min/principal → 15 min
+  lockout via `AuthService`) and import/export endpoints (5
+  requests/min/principal via `ImportExportRateLimiter` → **HTTP 429**).
+- **Pagination:** `AuditController.findAll` / `findByAction` accept
+  `Pageable` and return `Page<AuditLog>` (NFR9 — partial: still TODO for
+  user / vault / credential / device list endpoints).
+
+---
