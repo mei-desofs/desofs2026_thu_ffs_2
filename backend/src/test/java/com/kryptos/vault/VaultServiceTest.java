@@ -88,6 +88,20 @@ class VaultServiceTest {
     }
 
     @Test
+    void findById_shouldReturnVault_whenOwnerIsValid() {
+        UUID vaultId = UUID.randomUUID();
+        Vault vault = Vault.builder().id(vaultId).name("My Vault").description("desc").owner(owner).build();
+        when(vaultRepository.findByIdAndOwnerId(vaultId, ownerId)).thenReturn(Optional.of(vault));
+
+        VaultResponse response = vaultService.findById(vaultId, ownerId);
+
+        assertNotNull(response);
+        assertEquals(vaultId, response.id());
+        assertEquals("My Vault", response.name());
+        assertEquals(ownerId, response.ownerId());
+    }
+
+    @Test
     void findById_shouldThrow_whenVaultDoesNotBelongToOwner() {
         UUID vaultId = UUID.randomUUID();
         when(vaultRepository.findByIdAndOwnerId(vaultId, ownerId)).thenReturn(Optional.empty());

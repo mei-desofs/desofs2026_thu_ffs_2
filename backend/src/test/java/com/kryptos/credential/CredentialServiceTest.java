@@ -22,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -123,6 +124,48 @@ class CredentialServiceTest {
         List<CredentialResponse> result = credentialService.findAllByVault(vaultId, ownerId);
 
         assertEquals(2, result.size());
+    }
+
+    @Test
+    void findById_shouldReturnCredential_whenOwnerIsValid() {
+        UUID credId = UUID.randomUUID();
+        Credential credential = Credential.builder()
+                .id(credId).serviceName("GitHub").username("user@email.com")
+                .encryptedPassword("encryptedValue").url("https://github.com").vault(vault).build();
+        when(credentialRepository.findByIdAndVaultOwnerId(credId, ownerId))
+                .thenReturn(Optional.of(credential));
+
+        CredentialResponse response = credentialService.findById(credId, ownerId);
+
+        assertNotNull(response);
+        assertEquals(credId, response.id());
+        assertEquals("GitHub", response.serviceName());
+        assertEquals(vaultId, response.vaultId());
+    }
+
+    @Test
+    void create_shouldNotExposePasswordInResponse() {
+        CreateCredentialRequest request = new CreateCredentialRequest(
+                vaultId, "GitHub", "user@email.com", "plainPassword", "https://github.com", null);
+
+        Credential saved = Credential.builder()
+                .id(UUID.randomUUID()).serviceName("GitHub").username("user@email.com")
+                .encryptedPassword("encryptedValue").url("https://github.com").vault(vault).build();
+
+        when(vaultRepository.existsByIdAndOwnerId(vaultId, ownerId)).thenReturn(true);
+        when(vaultRepository.getReferenceById(vaultId)).thenReturn(vault);
+        when(encryptionService.encrypt("plainPassword")).thenReturn("encryptedValue");
+        when(credentialRepository.save(any(Credential.class))).thenReturn(saved);
+
+        CredentialResponse response = credentialService.create(request, ownerId);
+
+        assertNotNull(response);
+        // CredentialResponse must not expose any password field
+        var fieldNames = Arrays.stream(CredentialResponse.class.getDeclaredFields())
+                .map(java.lang.reflect.Field::getName)
+                .toList();
+        assertFalse(fieldNames.contains("password"), "CredentialResponse must not expose 'password'");
+        assertFalse(fieldNames.contains("encryptedPassword"), "CredentialResponse must not expose 'encryptedPassword'");
     }
 
     @Test
