@@ -314,3 +314,31 @@ implemented tests.
 
 ---
 
+## 6. Phase 2 / Sprint 3 backlog
+
+Carry-over items that are not yet closed:
+
+1. **R16 — log flooding load test.** No unit test can prove rate limits
+   survive a flood; this requires a k6 / Gatling script against the staging
+   stack and an alert on append-only WAL growth.
+2. **R02 — explicit `alg=none` test.** `JwtServiceTest` covers signature
+   tampering, expiry, wrong user, garbage and short-secret paths. jjwt
+   0.12.6 rejects `alg=none` by default, but an explicit negative test
+   would close the gap.
+3. **NFR9 — pagination.** Implemented on `AuditController`; still TODO on
+   `UserController.findAll`, `VaultController.findAll`,
+   `CredentialController.findByVault`, `TrustedDeviceController.findAll`.
+4. **TrustedDevice re-authentication on new fingerprint.** Requires an SMTP
+   provider to notify the user; deferred until a mail integration lands.
+5. **ASVS L2 documentation gap.** Of the 37 `In Progress` controls, V14
+   (data classification + retention, 7 items) and V16 (logging inventory
+   + metadata, 7 items) are the cluster to close in Sprint 3 because they
+   unblock GDPR alignment. V8 (authorization documentation, 3 items) and
+   V13 (db least-priv + secrets vault, 4 items) round out the most
+   impactful documentation backlog.
+6. **SAST / SCA gating.** SpotBugs and Dependency-Check run with
+   `continue-on-error: true` / `failOnError=false` today. Tighten to fail
+   the pipeline on HIGH SpotBugs findings and `CVSS ≥ 7` once the open
+   findings backlog is empty.
+
+---
