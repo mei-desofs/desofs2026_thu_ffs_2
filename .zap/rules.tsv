@@ -1,0 +1,21 @@
+# ZAP baseline scan rule overrides
+# Format: <rule-id>	<threshold>	<comment>
+# Thresholds: IGNORE, INFO, WARN, FAIL
+#
+# Sources for rule IDs: https://www.zaproxy.org/docs/alerts/
+#
+# We are running a STATELESS REST API behind JWT, so cookie / CSP / frame-rate
+# checks that target classic HTML responses are downgraded to WARN, never FAIL,
+# in the baseline. Anything related to information disclosure, transport
+# security or injection stays at the default FAIL severity.
+
+10015	WARN	(Incomplete or No Cache-control Header Set - acceptable on JSON 401/403)
+10020	WARN	(X-Frame-Options - not applicable on a pure REST API)
+10021	WARN	(X-Content-Type-Options - covered on file download endpoints)
+10038	WARN	(Content Security Policy - REST API serves JSON)
+10054	WARN	(Cookie Without SameSite - JWT in Authorization header, no cookies)
+10055	WARN	(CSP Scanner: failing alerts are not relevant for the JSON API surface)
+10063	WARN	(Permissions-Policy Header Not Set - not relevant for JSON API)
+10096	WARN	(Timestamp Disclosure - audit timestamps are intentional)
+10202	WARN	(Absence of Anti-CSRF Tokens - stateless JWT API, no CSRF surface)
+90004	WARN	(Insufficient Site Isolation - REST API only)

@@ -15,6 +15,7 @@ public final class AuditAction {
     public static final String VAULT_DELETE = "VAULT_DELETE";
     public static final String USER_DELETE = "USER_DELETE";
     public static final String DEVICE_REGISTER = "DEVICE_REGISTER";
+    public static final String DEVICE_UPDATE = "DEVICE_UPDATE";
     public static final String DEVICE_REVOKE = "DEVICE_REVOKE";
     public static final String EXPORT = "EXPORT";
     public static final String IMPORT = "IMPORT";
