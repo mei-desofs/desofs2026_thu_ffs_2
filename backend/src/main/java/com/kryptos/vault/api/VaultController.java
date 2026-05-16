@@ -1,5 +1,6 @@
 package com.kryptos.vault.api;
 
+import com.kryptos.shared.security.KryptosUserDetails;
 import com.kryptos.vault.application.VaultService;
 import com.kryptos.vault.application.dto.CreateVaultRequest;
 import com.kryptos.vault.application.dto.VaultResponse;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,29 +24,37 @@ public class VaultController {
 
     @PostMapping
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<VaultResponse> create(@Valid @RequestBody CreateVaultRequest request) {
-        // TODO: extract ownerId from SecurityContext
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<VaultResponse> create(
+            @Valid @RequestBody CreateVaultRequest request,
+            @AuthenticationPrincipal KryptosUserDetails principal) {
+        UUID ownerId = principal.getUser().getId();
+        return ResponseEntity.status(HttpStatus.CREATED).body(vaultService.create(request, ownerId));
     }
 
     @GetMapping
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<List<VaultResponse>> findAll() {
-        // TODO: extract ownerId from SecurityContext
-        return ResponseEntity.ok(List.of());
+    public ResponseEntity<List<VaultResponse>> findAll(
+            @AuthenticationPrincipal KryptosUserDetails principal) {
+        UUID ownerId = principal.getUser().getId();
+        return ResponseEntity.ok(vaultService.findAllByOwner(ownerId));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<VaultResponse> findById(@PathVariable UUID id) {
-        // TODO
-        return ResponseEntity.ok().build();
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<VaultResponse> findById(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal KryptosUserDetails principal) {
+        UUID ownerId = principal.getUser().getId();
+        return ResponseEntity.ok(vaultService.findById(id, ownerId));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        // TODO
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal KryptosUserDetails principal) {
+        UUID ownerId = principal.getUser().getId();
+        vaultService.delete(id, ownerId);
         return ResponseEntity.noContent().build();
     }
 }
