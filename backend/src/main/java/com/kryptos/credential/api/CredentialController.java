@@ -3,11 +3,13 @@ package com.kryptos.credential.api;
 import com.kryptos.credential.application.CredentialService;
 import com.kryptos.credential.application.dto.CreateCredentialRequest;
 import com.kryptos.credential.application.dto.CredentialResponse;
+import com.kryptos.shared.security.KryptosUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,29 +24,38 @@ public class CredentialController {
 
     @PostMapping
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<CredentialResponse> create(@Valid @RequestBody CreateCredentialRequest request) {
-        // TODO: extract ownerId from SecurityContext
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<CredentialResponse> create(
+            @Valid @RequestBody CreateCredentialRequest request,
+            @AuthenticationPrincipal KryptosUserDetails principal) {
+        UUID ownerId = principal.getUser().getId();
+        return ResponseEntity.status(HttpStatus.CREATED).body(credentialService.create(request, ownerId));
     }
 
     @GetMapping("/vault/{vaultId}")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<List<CredentialResponse>> findByVault(@PathVariable UUID vaultId) {
-        // TODO: extract ownerId from SecurityContext
-        return ResponseEntity.ok(List.of());
+    public ResponseEntity<List<CredentialResponse>> findByVault(
+            @PathVariable UUID vaultId,
+            @AuthenticationPrincipal KryptosUserDetails principal) {
+        UUID ownerId = principal.getUser().getId();
+        return ResponseEntity.ok(credentialService.findAllByVault(vaultId, ownerId));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<CredentialResponse> findById(@PathVariable UUID id) {
-        // TODO
-        return ResponseEntity.ok().build();
+    public ResponseEntity<CredentialResponse> findById(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal KryptosUserDetails principal) {
+        UUID ownerId = principal.getUser().getId();
+        return ResponseEntity.ok(credentialService.findById(id, ownerId));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        // TODO
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal KryptosUserDetails principal) {
+        UUID ownerId = principal.getUser().getId();
+        credentialService.delete(id, ownerId);
         return ResponseEntity.noContent().build();
     }
 }

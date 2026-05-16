@@ -4,11 +4,16 @@ import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.credential.application.dto.CreateCredentialRequest;
 import com.kryptos.credential.application.dto.CredentialResponse;
+import com.kryptos.credential.domain.Credential;
 import com.kryptos.credential.domain.CredentialRepository;
 import com.kryptos.shared.encryption.EncryptionService;
+import com.kryptos.shared.exception.ForbiddenException;
+import com.kryptos.shared.exception.ResourceNotFoundException;
+import com.kryptos.vault.domain.VaultRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -18,31 +23,72 @@ import java.util.UUID;
 public class CredentialService {
 
     private final CredentialRepository credentialRepository;
+    private final VaultRepository vaultRepository;
     private final EncryptionService encryptionService;
     private final AuditService auditService;
 
+    @Transactional
     public CredentialResponse create(CreateCredentialRequest request, UUID ownerId) {
-        // TODO: encrypt password before saving
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        auditService.log(AuditAction.CREDENTIAL_CREATE, username, "credential",
+        if (!vaultRepository.existsByIdAndOwnerId(request.vaultId(), ownerId)) {
+            throw new ForbiddenException("Vault not found or access denied");
+        }
+
+        Credential credential = Credential.builder()
+                .serviceName(request.serviceName())
+                .username(request.username())
+                .encryptedPassword(encryptionService.encrypt(request.password()))
+                .url(request.url())
+                .notes(request.notes())
+                .vault(vaultRepository.getReferenceById(request.vaultId()))
+                .build();
+        credentialRepository.save(credential);
+
+        auditService.log(AuditAction.CREDENTIAL_CREATE, currentUsername(),
+                "credential:" + credential.getId(),
                 "Created credential for service: " + request.serviceName());
-        return null;
+
+        return toResponse(credential);
     }
 
     public List<CredentialResponse> findAllByVault(UUID vaultId, UUID ownerId) {
-        // TODO: verify vault ownership before listing
-        return List.of();
+        if (!vaultRepository.existsByIdAndOwnerId(vaultId, ownerId)) {
+            throw new ForbiddenException("Vault not found or access denied");
+        }
+        return credentialRepository.findAllByVaultIdAndVaultOwnerId(vaultId, ownerId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     public CredentialResponse findById(UUID id, UUID ownerId) {
-        // TODO: verify ownership
-        return null;
+        Credential credential = credentialRepository.findByIdAndVaultOwnerId(id, ownerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Credential not found"));
+        return toResponse(credential);
     }
 
+    @Transactional
     public void delete(UUID id, UUID ownerId) {
-        // TODO: verify ownership
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        auditService.log(AuditAction.CREDENTIAL_DELETE, username, "credential",
-                "Deleted credential: " + id);
+        if (!credentialRepository.existsByIdAndVaultOwnerId(id, ownerId)) {
+            throw new ForbiddenException("Credential not found or access denied");
+        }
+        credentialRepository.deleteById(id);
+
+        auditService.log(AuditAction.CREDENTIAL_DELETE, currentUsername(),
+                "credential:" + id, "Deleted credential: " + id);
+    }
+
+    private CredentialResponse toResponse(Credential credential) {
+        return new CredentialResponse(
+                credential.getId(),
+                credential.getServiceName(),
+                credential.getUsername(),
+                credential.getUrl(),
+                credential.getNotes(),
+                credential.getVault().getId()
+        );
+    }
+
+    private String currentUsername() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 }
