@@ -1,12 +1,21 @@
+# IDE
 .idea
 *.iml
+.vscode/
+.metals/
 
 # Maven
 backend/target/
+backend/HELP.md
 
 # Environment
 .env
 backend/.env
 
+# Logs
+*.log
+backend/logs/
+
 # OS
 .DS_Store
+Thumbs.db
