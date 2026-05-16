@@ -276,3 +276,41 @@ shipping to a separate system, OAuth/OIDC controls if we ever adopt them,
 and the L3 adaptive-security / per-message signature items).
 
 ---
+
+## 5. Security Requirements vs. Test Traceability
+
+Mapping from Sprint 1 `Derivables/Sprint1/SecurityTestPlanV2.md` to the
+implemented tests.
+
+### General Requirements (GR)
+
+| ID  | Requirement                              | Test evidence                                                                                                                | Status        |
+|-----|------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|---------------|
+| GR1 | Auth + RBAC on all endpoints             | `@PreAuthorize` on every controller; `AuditControllerTest` verifies ADMIN / AUDITOR / anon                                  | Covered       |
+| GR2 | Input validation & sanitization          | DTO `@NotBlank`/`@Email`/`@Size`; `AuditServiceTest.log_shouldSanitizeDetails`; controller tests for `400 Bad Request`       | Covered       |
+| GR3 | HTTPS / TLS                              | Enforced at reverse proxy + HSTS header in `SecurityConfig` — not in unit-test scope                                          | Architectural |
+| GR4 | Failed auth attempts logged              | `AuthServiceTest` — `LOGIN_FAILED` audit verified on bad password and on lockout                                              | Covered       |
+| GR5 | Rate limiting on sensitive endpoints     | `AuthServiceTest.login_shouldLockAccount_afterMaxFailedAttempts` + `ImportExportRateLimiterTest` (2 tests)                  | Covered       |
+| GR6 | Strong password hashing (Argon2)         | `SecurityConfig.passwordEncoder()` returns `Argon2PasswordEncoder` — architectural; exercised end-to-end in `AuthServiceTest` | Covered       |
+| GR7 | JWT expiration validation                | `JwtServiceTest.isTokenValid_shouldReturnFalse_forExpiredToken` (+ tampered/garbage paths)                                    | Covered       |
+| GR8 | Credentials encrypted at rest            | `CredentialServiceTest.create_shouldEncryptPasswordAndSave` + `EncryptionServiceTest`                                         | Covered       |
+| GR9 | Secure wipe of temp files                | `FileHandlingServiceTest.secureDelete_removesFileAndLogsSuccess` + `secureDelete_refusesPathOutsideTempDir`                  | Covered       |
+| GR10| Audit logs restricted to ADMIN / AUDITOR | `AuditControllerTest` — ADMIN 200, AUDITOR 200, anon 401                                                                      | Covered       |
+
+### User Requirements (UR)
+
+| ID   | Requirement                                       | Test evidence                                                                                                  | Status      |
+|------|---------------------------------------------------|----------------------------------------------------------------------------------------------------------------|-------------|
+| UR1  | User only accesses own vaults / credentials / devices | `VaultServiceTest`, `CredentialServiceTest`, `TrustedDeviceServiceTest` IDOR cases                          | Covered     |
+| UR2  | Stored credentials encrypted                       | `CredentialServiceTest` + `EncryptionServiceTest`                                                              | Covered     |
+| UR3  | Register trusted devices                           | `TrustedDeviceServiceTest.register_shouldCreateNewDevice…` + fingerprint-collision rejection                    | Covered     |
+| UR4  | Import/export does not expose data                 | `CredentialImportExportServiceTest` (5) + `FileHandlingServiceTest` (5)                                         | Covered     |
+| UR5  | Log of important actions on user account           | Audit emission verified in `CredentialServiceTest.delete_shouldDeleteAndAudit`, `VaultServiceTest.delete_shouldDeleteAndAudit`, `TrustedDeviceServiceTest.revoke_*` | Covered |
+| UR6  | Session expiration                                 | `JwtServiceTest.isTokenValid_shouldReturnFalse_forExpiredToken`                                                | Covered     |
+| UR7  | Admin cannot access user credentials               | No admin endpoint exposes decrypted passwords — architectural guarantee                                         | Architectural |
+| UR8  | All administrative actions logged                  | `UserServiceTest.deleteById_shouldSoftDeleteUser` + `updateUserRole_shouldChangeRoleAndSave` verify the audit call | Covered  |
+| UR9  | Auditor read-only on logs                          | `AuditController` is read-only; `AuditLog` `@PreUpdate` / `@PreRemove` block writes                            | Covered     |
+| UR10 | Audit records immutable                            | `AuditLogTest` JPA lifecycle guards + `AuditServiceTest.log_shouldBuildHashChain`                              | Covered     |
+
+---
+
