@@ -3,6 +3,7 @@ package com.kryptos.user.domain;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.UUID;
+import java.io.Serializable;
 
 @Entity
 @Table(name = "users")
@@ -11,7 +12,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User {
+public class User implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

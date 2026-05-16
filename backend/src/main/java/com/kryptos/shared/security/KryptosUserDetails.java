@@ -17,8 +17,8 @@ public class KryptosUserDetails implements UserDetails {
         this.user = user;
     }
 
-    public User getUser() {
-        return user;
+    public UUID getId() {
+        return user.getId();
     }
 
     @Override
