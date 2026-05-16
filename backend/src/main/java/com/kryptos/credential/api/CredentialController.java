@@ -27,7 +27,7 @@ public class CredentialController {
     public ResponseEntity<CredentialResponse> create(
             @Valid @RequestBody CreateCredentialRequest request,
             @AuthenticationPrincipal KryptosUserDetails principal) {
-        UUID ownerId = principal.getUser().getId();
+        UUID ownerId = principal.getId();
         return ResponseEntity.status(HttpStatus.CREATED).body(credentialService.create(request, ownerId));
     }
 
@@ -36,7 +36,7 @@ public class CredentialController {
     public ResponseEntity<List<CredentialResponse>> findByVault(
             @PathVariable UUID vaultId,
             @AuthenticationPrincipal KryptosUserDetails principal) {
-        UUID ownerId = principal.getUser().getId();
+        UUID ownerId = principal.getId();
         return ResponseEntity.ok(credentialService.findAllByVault(vaultId, ownerId));
     }
 
@@ -45,7 +45,7 @@ public class CredentialController {
     public ResponseEntity<CredentialResponse> findById(
             @PathVariable UUID id,
             @AuthenticationPrincipal KryptosUserDetails principal) {
-        UUID ownerId = principal.getUser().getId();
+        UUID ownerId = principal.getId();
         return ResponseEntity.ok(credentialService.findById(id, ownerId));
     }
 
@@ -54,7 +54,7 @@ public class CredentialController {
     public ResponseEntity<Void> delete(
             @PathVariable UUID id,
             @AuthenticationPrincipal KryptosUserDetails principal) {
-        UUID ownerId = principal.getUser().getId();
+        UUID ownerId = principal.getId();
         credentialService.delete(id, ownerId);
         return ResponseEntity.noContent().build();
     }

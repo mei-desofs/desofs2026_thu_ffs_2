@@ -27,7 +27,7 @@ public class VaultController {
     public ResponseEntity<VaultResponse> create(
             @Valid @RequestBody CreateVaultRequest request,
             @AuthenticationPrincipal KryptosUserDetails principal) {
-        UUID ownerId = principal.getUser().getId();
+        UUID ownerId = principal.getId();
         return ResponseEntity.status(HttpStatus.CREATED).body(vaultService.create(request, ownerId));
     }
 
@@ -35,7 +35,7 @@ public class VaultController {
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<List<VaultResponse>> findAll(
             @AuthenticationPrincipal KryptosUserDetails principal) {
-        UUID ownerId = principal.getUser().getId();
+        UUID ownerId = principal.getId();
         return ResponseEntity.ok(vaultService.findAllByOwner(ownerId));
     }
 
@@ -44,7 +44,7 @@ public class VaultController {
     public ResponseEntity<VaultResponse> findById(
             @PathVariable UUID id,
             @AuthenticationPrincipal KryptosUserDetails principal) {
-        UUID ownerId = principal.getUser().getId();
+        UUID ownerId = principal.getId();
         return ResponseEntity.ok(vaultService.findById(id, ownerId));
     }
 
@@ -53,7 +53,7 @@ public class VaultController {
     public ResponseEntity<Void> delete(
             @PathVariable UUID id,
             @AuthenticationPrincipal KryptosUserDetails principal) {
-        UUID ownerId = principal.getUser().getId();
+        UUID ownerId = principal.getId();
         vaultService.delete(id, ownerId);
         return ResponseEntity.noContent().build();
     }
