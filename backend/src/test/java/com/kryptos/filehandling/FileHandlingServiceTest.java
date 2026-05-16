@@ -1,17 +1,5 @@
 package com.kryptos.filehandling;
 
-import com.kryptos.audit.application.AuditService;
-import com.kryptos.audit.domain.AuditAction;
-import com.kryptos.filehandling.application.FileHandlingService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.util.ReflectionTestUtils;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,10 +10,22 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import com.kryptos.audit.application.AuditService;
+import com.kryptos.audit.domain.AuditAction;
+import com.kryptos.filehandling.application.FileHandlingService;
 
 /**
  * Unit tests for {@link FileHandlingService}. Each test maps to a specific
@@ -73,7 +73,7 @@ class FileHandlingServiceTest {
         service.secureDelete(victim);
 
         assertThat(Files.exists(victim)).isFalse();
-        verify(auditService).log(eq(AuditAction.SECURE_WIPE), eq("tester"),
+        verify(auditService).log(eq(AuditAction.SECURE_WIPE), eq("testuser"),
                 eq("filehandling"), any());
     }
 
@@ -85,7 +85,7 @@ class FileHandlingServiceTest {
         assertThatThrownBy(() -> service.secureDelete(outside))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("outside temp directory");
-        verify(auditService).log(eq(AuditAction.SECURE_WIPE_FAILED), eq("tester"),
+        verify(auditService).log(eq(AuditAction.SECURE_WIPE_FAILED), eq("testuser"),
                 eq("filehandling"), any());
     }
 
