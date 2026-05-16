@@ -66,6 +66,8 @@ public class AuthService {
                 .orElse(providedId); 
 
         if (lockouts.containsKey(cacheKey) && lockouts.get(cacheKey).isAfter(Instant.now())) {
+            auditService.log(AuditAction.LOGIN_FAILED, cacheKey, "auth",
+                    "Login blocked - account locked due to " + MAX_ATTEMPTS + " failed attempts");
             throw new com.kryptos.shared.exception.RateLimitExceededException("Too many failed attempts. Try again later."); 
         }
 
@@ -79,15 +81,22 @@ public class AuthService {
 
             var user = userRepository.findByUsername(cacheKey).orElseThrow();
             String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
+
+            auditService.log(AuditAction.LOGIN, cacheKey, "auth", "User logged in");
             
             return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
 
         } catch (Exception e) {
             int attempts = loginAttempts.getOrDefault(cacheKey, 0) + 1;
             loginAttempts.put(cacheKey, attempts);
+
+            auditService.log(AuditAction.LOGIN_FAILED, cacheKey, "auth",
+                    "Failed login attempt " + attempts + "/" + MAX_ATTEMPTS);
             
             if (attempts >= MAX_ATTEMPTS) {
-                lockouts.put(cacheKey, Instant.now().plusSeconds(900)); 
+                lockouts.put(cacheKey, Instant.now().plusSeconds(900));
+                auditService.log(AuditAction.LOGIN_FAILED, cacheKey, "auth",
+                        "Account locked after " + MAX_ATTEMPTS + " failed login attempts");
             }
             throw new IllegalArgumentException("Invalid credentials");
         }

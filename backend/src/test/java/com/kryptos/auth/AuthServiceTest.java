@@ -1,6 +1,7 @@
 package com.kryptos.auth;
 
 import com.kryptos.auth.application.AuthService;
+import com.kryptos.audit.application.AuditService;
 import com.kryptos.user.domain.UserRepository;
 import com.kryptos.shared.security.JwtService;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -21,6 +23,12 @@ class AuthServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private AuthenticationManager authenticationManager;
+
+    @Mock
+    private AuditService auditService;
 
     @InjectMocks
     private AuthService authService;
