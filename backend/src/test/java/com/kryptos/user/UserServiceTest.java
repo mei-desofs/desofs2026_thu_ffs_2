@@ -126,12 +126,12 @@ class UserServiceTest {
         when(userRepository.save(any())).thenReturn(targetUser);
 
         UpdateUserRequest request = new UpdateUserRequest("newemail@test.com", "newusername");
-        userService.update(targetUserId, request);
+        userService.update(targetUserId, request, "targetuser", false);
 
         assertEquals("newemail@test.com", targetUser.getEmail());
         assertEquals("newusername", targetUser.getUsername());
         verify(userRepository).save(targetUser);
-        verify(auditService).log(eq(AuditAction.USER_PROFILE_UPDATE), eq("admin_user"), eq("user"), any());
+        verify(auditService).log(eq(AuditAction.USER_PROFILE_UPDATE), eq("targetuser"), eq("user"), any());
     }
 
     @Test
@@ -141,7 +141,7 @@ class UserServiceTest {
 
         UpdateUserRequest request = new UpdateUserRequest("taken@test.com", "username");
         assertThrows(IllegalArgumentException.class,
-                () -> userService.update(targetUserId, request));
+                () -> userService.update(targetUserId, request, "targetuser", false));
     }
 
     @Test
@@ -150,7 +150,7 @@ class UserServiceTest {
 
         UpdateUserRequest request = new UpdateUserRequest("newemail@test.com", "username");
         assertThrows(ResourceNotFoundException.class,
-                () -> userService.update(targetUserId, request));
+                () -> userService.update(targetUserId, request, "targetuser", false));
     }
 
     @Test
@@ -159,10 +159,49 @@ class UserServiceTest {
         when(userRepository.save(any())).thenReturn(targetUser);
 
         UpdateUserRequest request = new UpdateUserRequest(null, "newusername");
-        userService.update(targetUserId, request);
+        userService.update(targetUserId, request, "targetuser", false);
 
-        assertEquals("target@kryptos.com", targetUser.getEmail()); // Email não mudou
+        assertEquals("target@kryptos.com", targetUser.getEmail());
         assertEquals("newusername", targetUser.getUsername());
+        verify(userRepository).save(targetUser);
+    }
+
+    @Test
+    void update_shouldThrow_whenUserAttemptsToUpdateOtherUser() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+
+        UpdateUserRequest request = new UpdateUserRequest("newemail@example.com", "newusername");
+
+        assertThrows(ForbiddenException.class,
+                () -> userService.update(targetUserId, request, "attacker_user", false));
+    }
+
+    @Test
+    void update_shouldSucceed_whenAdminUpdatesOtherUser() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(userRepository.existsByEmailAndIdNot("admin@example.com", targetUserId)).thenReturn(false);
+        when(userRepository.save(any())).thenReturn(targetUser);
+
+        UpdateUserRequest request = new UpdateUserRequest("admin@example.com", "admin_update");
+
+        UserResponse response = userService.update(targetUserId, request, "admin_user", true);
+
+        assertNotNull(response);
+        verify(userRepository).save(targetUser);
+        verify(auditService).log(eq(AuditAction.USER_PROFILE_UPDATE), eq("admin_user"), eq("user"), any());
+    }
+
+    @Test
+    void update_shouldSucceed_whenUserUpdatesOwnProfile() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(userRepository.existsByEmailAndIdNot("newemail@example.com", targetUserId)).thenReturn(false);
+        when(userRepository.save(any())).thenReturn(targetUser);
+
+        UpdateUserRequest request = new UpdateUserRequest("newemail@example.com", null);
+
+        UserResponse response = userService.update(targetUserId, request, "targetuser", false);
+
+        assertNotNull(response);
         verify(userRepository).save(targetUser);
     }
 }
