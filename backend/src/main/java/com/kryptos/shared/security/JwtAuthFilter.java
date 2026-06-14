@@ -39,7 +39,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         if (jwtService.isTokenRevoked(token)) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token has been revoked");
+            filterChain.doFilter(request, response);
             return;
         }
 
