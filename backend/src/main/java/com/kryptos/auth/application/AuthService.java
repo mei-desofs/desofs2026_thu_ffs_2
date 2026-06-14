@@ -300,6 +300,11 @@ public class AuthService {
                 "Password reset completed successfully");
     }
 
+    public void logout(String token, String username) {
+        jwtService.revokeToken(token);
+        auditService.log(AuditAction.LOGOUT, username, "auth", "User logged out");
+    }
+
     private void incrementResetFailure(String username) {
         int failures = resetFailures.getOrDefault(username, 0) + 1;
         resetFailures.put(username, failures);

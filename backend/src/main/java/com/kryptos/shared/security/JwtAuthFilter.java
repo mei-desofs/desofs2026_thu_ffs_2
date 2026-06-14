@@ -38,6 +38,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        if (jwtService.isTokenRevoked(token)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String username;
         try {
             username = jwtService.extractUsername(token);
