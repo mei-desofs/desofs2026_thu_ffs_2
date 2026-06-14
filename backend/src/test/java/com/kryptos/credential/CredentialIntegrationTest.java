@@ -29,7 +29,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Disabled("Disabled entirely due to CI issues")
 public class CredentialIntegrationTest {
 
     @Autowired
@@ -149,7 +148,6 @@ public class CredentialIntegrationTest {
     }
 
     @Test
-    @Disabled("Failing in CI with 403. Needs investigation.")
     void updateCredential_shouldAllow_whenOptionalFieldsAreNull() throws Exception {
         UpdateCredentialRequest request = new UpdateCredentialRequest("Service", "user", "pass", null, null);
 
