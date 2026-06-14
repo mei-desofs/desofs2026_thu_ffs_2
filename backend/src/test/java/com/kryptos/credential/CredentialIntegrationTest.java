@@ -5,6 +5,7 @@ import com.kryptos.credential.application.dto.UpdateCredentialRequest;
 import com.kryptos.credential.domain.Credential;
 import com.kryptos.credential.domain.CredentialRepository;
 import com.kryptos.shared.security.JwtService;
+import com.kryptos.user.domain.Role;
 import com.kryptos.user.domain.User;
 import com.kryptos.user.domain.UserRepository;
 import com.kryptos.vault.domain.Vault;
@@ -61,9 +62,9 @@ public class CredentialIntegrationTest {
         userRepository.deleteAll();
 
         // Setup User 1
-        user1 = User.builder().id(UUID.randomUUID()).username("user1").email("user1@test.com").password("pass1").role("USER").build();
+        user1 = User.builder().id(UUID.randomUUID()).username("user1").email("user1@test.com").password("pass1").role(Role.USER).build();
         userRepository.save(user1);
-        user1Token = jwtService.generateToken(user1);
+        user1Token = jwtService.generateToken(user1.getUsername(), user1.getRole().name());
 
         Vault vault1 = Vault.builder().id(UUID.randomUUID()).name("Vault 1").owner(user1).build();
         vaultRepository.save(vault1);
@@ -72,9 +73,9 @@ public class CredentialIntegrationTest {
         credentialRepository.save(user1Credential);
 
         // Setup User 2
-        user2 = User.builder().id(UUID.randomUUID()).username("user2").email("user2@test.com").password("pass2").role("USER").build();
+        user2 = User.builder().id(UUID.randomUUID()).username("user2").email("user2@test.com").password("pass2").role(Role.USER).build();
         userRepository.save(user2);
-        user2Token = jwtService.generateToken(user2);
+        user2Token = jwtService.generateToken(user2.getUsername(), user2.getRole().name());
 
         Vault vault2 = Vault.builder().id(UUID.randomUUID()).name("Vault 2").owner(user2).build();
         vaultRepository.save(vault2);
