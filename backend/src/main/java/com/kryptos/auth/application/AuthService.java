@@ -116,6 +116,15 @@ public class AuthService {
         return resetLockouts.containsKey(email) && resetLockouts.get(email).isAfter(Instant.now());
     }
 
+    private boolean isPasswordInHistory(User user, String newPassword) {
+        for (String oldPasswordHash : user.getPasswordHistoryList()) {
+            if (passwordEncoder.matches(newPassword, oldPasswordHash)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Transactional
     public void requestPasswordReset(PasswordResetRequest request) {
         String email = request.email();
@@ -161,7 +170,13 @@ public class AuthService {
             throw new InvalidTokenException("Reset token has expired");
         }
 
-        user.setPassword(passwordEncoder.encode(confirm.newPassword()));
+        if (isPasswordInHistory(user, confirm.newPassword())) {
+            throw new IllegalArgumentException("Cannot reuse one of your last 3 passwords");
+        }
+
+        String encodedPassword = passwordEncoder.encode(confirm.newPassword());
+        user.addToPasswordHistory(user.getPassword());
+        user.setPassword(encodedPassword);
         user.setResetToken(null);
         user.setResetTokenExpiresAt(null);
         userRepository.save(user);
