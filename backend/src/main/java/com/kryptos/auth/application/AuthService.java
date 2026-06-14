@@ -1,5 +1,6 @@
 package com.kryptos.auth.application;
 
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -15,9 +16,12 @@ import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.auth.application.dto.AuthResponse;
 import com.kryptos.auth.application.dto.LoginRequest;
+import com.kryptos.auth.application.dto.LoginResponse;
 import com.kryptos.auth.application.dto.PasswordResetConfirm;
 import com.kryptos.auth.application.dto.PasswordResetRequest;
 import com.kryptos.auth.application.dto.RegisterRequest;
+import com.kryptos.auth.application.dto.TwoFaVerifyRequest;
+import com.kryptos.shared.email.EmailService;
 import com.kryptos.shared.exception.InvalidTokenException;
 import com.kryptos.shared.security.JwtService;
 import com.kryptos.user.domain.Role;
@@ -35,19 +39,23 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final AuditService auditService;
+    private final EmailService emailService;
 
     private final ConcurrentHashMap<String, Integer> loginAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> lockouts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Integer> resetAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> resetLockouts = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Integer> resetFailures = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Integer> twoFaAttempts = new ConcurrentHashMap<>();
     private static final int MAX_ATTEMPTS = 5;
     private static final int MAX_RESET_ATTEMPTS = 3;
-    private static final int MAX_RESET_FAILURES = 3;
+    private static final int MAX_2FA_ATTEMPTS = 5;
     private static final int RESET_LOCKOUT_SECONDS = 300;
+    private static final int TWO_FA_CODE_EXPIRY_MINUTES = 5;
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.findByEmail(request.email()).isPresent() || 
+        if (userRepository.findByEmail(request.email()).isPresent() ||
             userRepository.findByUsername(request.username()).isPresent()) {
             throw new IllegalArgumentException("Username or Email already in use");
         }
@@ -55,13 +63,13 @@ public class AuthService {
         User user = User.builder()
                 .username(request.username())
                 .email(request.email())
-                .password(passwordEncoder.encode(request.password())) 
-                .role(Role.USER) 
-                .active(true) 
+                .password(passwordEncoder.encode(request.password()))
+                .role(Role.USER)
+                .active(true)
                 .build();
 
         userRepository.save(user);
-        
+
         String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
 
         auditService.log(AuditAction.REGISTER, request.username(), "auth", "User registered");
@@ -69,7 +77,7 @@ public class AuthService {
         return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request) {
         String providedId = request.username();
 
         String cacheKey = userRepository.findByUsername(providedId)
@@ -99,11 +107,16 @@ public class AuthService {
             lockouts.remove(cacheKey);
 
             var user = userRepository.findByUsername(cacheKey).orElseThrow();
-            String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
 
+            if (user.isTwoFaEnabled()) {
+                sendTwoFaCode(user);
+                auditService.log(AuditAction.LOGIN, cacheKey, "auth", "Password valid, 2FA code sent");
+                return LoginResponse.twoFaRequired(user.getUsername());
+            }
+
+            String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
             auditService.log(AuditAction.LOGIN, cacheKey, "auth", "User logged in");
-            
-            return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
+            return LoginResponse.authenticated(jwtToken, user.getUsername(), user.getRole().name());
 
         } catch (Exception e) {
             int attempts = loginAttempts.getOrDefault(cacheKey, 0) + 1;
@@ -111,7 +124,7 @@ public class AuthService {
 
             auditService.log(AuditAction.LOGIN_FAILED, cacheKey, "auth",
                     "Failed login attempt " + attempts + "/" + MAX_ATTEMPTS);
-            
+
             if (attempts >= MAX_ATTEMPTS) {
                 lockouts.put(cacheKey, Instant.now().plusSeconds(900));
                 auditService.log(AuditAction.LOGIN_FAILED, cacheKey, "auth",
@@ -119,6 +132,92 @@ public class AuthService {
             }
             throw new IllegalArgumentException("Invalid credentials");
         }
+    }
+
+    @Transactional
+    public AuthResponse verifyTwoFaCode(TwoFaVerifyRequest request) {
+        User user = userRepository.findByUsername(request.username())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+
+        int attempts = twoFaAttempts.getOrDefault(user.getUsername(), 0);
+        if (attempts >= MAX_2FA_ATTEMPTS) {
+            auditService.log(AuditAction.LOGIN_FAILED, user.getUsername(), "auth",
+                    "2FA verification blocked - too many attempts");
+            throw new com.kryptos.shared.exception.RateLimitExceededException(
+                    "Too many 2FA attempts. Request a new code.");
+        }
+
+        if (user.getTwoFaCode() == null || user.getTwoFaCodeExpiresAt() == null) {
+            throw new IllegalArgumentException("No 2FA code pending. Please login again.");
+        }
+
+        if (user.getTwoFaCodeExpiresAt().isBefore(LocalDateTime.now())) {
+            user.setTwoFaCode(null);
+            user.setTwoFaCodeExpiresAt(null);
+            userRepository.save(user);
+            throw new InvalidTokenException("2FA code has expired. Please login again.");
+        }
+
+        if (!user.getTwoFaCode().equals(request.code())) {
+            twoFaAttempts.put(user.getUsername(), attempts + 1);
+            auditService.log(AuditAction.LOGIN_FAILED, user.getUsername(), "auth",
+                    "Invalid 2FA code attempt " + (attempts + 1) + "/" + MAX_2FA_ATTEMPTS);
+            throw new IllegalArgumentException("Invalid 2FA code");
+        }
+
+        // Code is valid — clear it and issue token
+        user.setTwoFaCode(null);
+        user.setTwoFaCodeExpiresAt(null);
+        userRepository.save(user);
+        twoFaAttempts.remove(user.getUsername());
+
+        String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
+        auditService.log(AuditAction.LOGIN, user.getUsername(), "auth", "2FA verified, user logged in");
+
+        return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
+    }
+
+    @Transactional
+    public void enableTwoFa(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (user.isTwoFaEnabled()) {
+            throw new IllegalArgumentException("2FA is already enabled");
+        }
+
+        user.setTwoFaEnabled(true);
+        userRepository.save(user);
+        auditService.log(AuditAction.REGISTER, username, "auth", "2FA enabled");
+    }
+
+    @Transactional
+    public void disableTwoFa(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!user.isTwoFaEnabled()) {
+            throw new IllegalArgumentException("2FA is not enabled");
+        }
+
+        user.setTwoFaEnabled(false);
+        user.setTwoFaCode(null);
+        user.setTwoFaCodeExpiresAt(null);
+        userRepository.save(user);
+        auditService.log(AuditAction.REGISTER, username, "auth", "2FA disabled");
+    }
+
+    private void sendTwoFaCode(User user) {
+        String code = generateSecureCode();
+        user.setTwoFaCode(code);
+        user.setTwoFaCodeExpiresAt(LocalDateTime.now().plusMinutes(TWO_FA_CODE_EXPIRY_MINUTES));
+        userRepository.save(user);
+        emailService.sendTwoFaCode(user.getEmail(), code);
+    }
+
+    private String generateSecureCode() {
+        int code = SECURE_RANDOM.nextInt(900000) + 100000; // 6 digits: 100000-999999
+        return String.valueOf(code);
     }
 
     private boolean isResetLocked(String email) {
@@ -172,14 +271,10 @@ public class AuthService {
     @Transactional
     public void confirmPasswordReset(PasswordResetConfirm confirm) {
         User user = userRepository.findByResetToken(confirm.token())
-                .orElseThrow(() -> {
-                    incrementResetFailure(confirm.token());
-                    return new InvalidTokenException("Invalid reset token");
-                });
+                .orElseThrow(() -> new InvalidTokenException("Invalid reset token"));
 
         if (user.getResetTokenExpiresAt() == null ||
             user.getResetTokenExpiresAt().isBefore(LocalDateTime.now())) {
-            incrementResetFailure(user.getUsername());
             throw new InvalidTokenException("Reset token has expired");
         }
 
@@ -192,23 +287,9 @@ public class AuthService {
         user.setPassword(encodedPassword);
         user.setResetToken(null);
         user.setResetTokenExpiresAt(null);
-        resetFailures.remove(user.getUsername());
         userRepository.save(user);
 
         auditService.log(AuditAction.PASSWORD_RESET_COMPLETED, user.getUsername(), "auth",
                 "Password reset completed successfully");
-    }
-
-    private void incrementResetFailure(String username) {
-        int failures = resetFailures.getOrDefault(username, 0) + 1;
-        resetFailures.put(username, failures);
-
-        User user = userRepository.findByUsername(username).orElse(null);
-        if (user != null && failures >= MAX_RESET_FAILURES) {
-            user.setAccountLockedUntilAdmin(true);
-            userRepository.save(user);
-            auditService.log(AuditAction.LOGIN_FAILED, username, "auth",
-                    "Account locked after " + MAX_RESET_FAILURES + " failed password reset attempts");
-        }
     }
 }

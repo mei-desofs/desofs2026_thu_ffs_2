@@ -30,6 +30,9 @@ public class CredentialService {
     @Transactional
     public CredentialResponse create(CreateCredentialRequest request, UUID ownerId) {
         if (!vaultRepository.existsByIdAndOwnerId(request.vaultId(), ownerId)) {
+            auditService.log(AuditAction.ACCESS_DENIED_CREDENTIAL, currentUsername(),
+                    "vault:" + request.vaultId(),
+                    "DENIED create credential: vault not found or not owned");
             throw new ForbiddenException("Vault not found or access denied");
         }
 
@@ -52,6 +55,9 @@ public class CredentialService {
 
     public List<CredentialResponse> findAllByVault(UUID vaultId, UUID ownerId) {
         if (!vaultRepository.existsByIdAndOwnerId(vaultId, ownerId)) {
+            auditService.log(AuditAction.ACCESS_DENIED_CREDENTIAL, currentUsername(),
+                    "vault:" + vaultId,
+                    "DENIED list credentials: vault not found or not owned");
             throw new ForbiddenException("Vault not found or access denied");
         }
         return credentialRepository.findAllByVaultIdAndVaultOwnerId(vaultId, ownerId)
@@ -61,14 +67,22 @@ public class CredentialService {
     }
 
     public CredentialResponse findById(UUID id, UUID ownerId) {
-        Credential credential = credentialRepository.findByIdAndVaultOwnerId(id, ownerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Credential not found"));
+        Credential credential = credentialRepository.findByIdAndVaultOwnerId(id, ownerId).orElse(null);
+        if (credential == null) {
+            auditService.log(AuditAction.ACCESS_DENIED_CREDENTIAL, currentUsername(),
+                    "credential:" + id,
+                    "DENIED read: credential not found or not owned");
+            throw new ResourceNotFoundException("Credential not found");
+        }
         return toResponse(credential);
     }
 
     @Transactional
     public void delete(UUID id, UUID ownerId) {
         if (!credentialRepository.existsByIdAndVaultOwnerId(id, ownerId)) {
+            auditService.log(AuditAction.ACCESS_DENIED_CREDENTIAL, currentUsername(),
+                    "credential:" + id,
+                    "DENIED delete: credential not found or not owned");
             throw new ForbiddenException("Credential not found or access denied");
         }
         credentialRepository.deleteById(id);

@@ -1,10 +1,12 @@
 package com.kryptos.auth;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,8 +32,11 @@ import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.auth.application.AuthService;
 import com.kryptos.auth.application.dto.AuthResponse;
 import com.kryptos.auth.application.dto.LoginRequest;
+import com.kryptos.auth.application.dto.LoginResponse;
+import com.kryptos.auth.application.dto.PasswordResetConfirm;
 import com.kryptos.auth.application.dto.RegisterRequest;
-import com.kryptos.shared.exception.InvalidTokenException;
+import com.kryptos.auth.application.dto.TwoFaVerifyRequest;
+import com.kryptos.shared.email.EmailService;
 import com.kryptos.shared.exception.RateLimitExceededException;
 import com.kryptos.shared.security.JwtService;
 import com.kryptos.auth.application.dto.PasswordResetConfirm;
@@ -47,6 +52,7 @@ class AuthServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private AuditService auditService;
+    @Mock private EmailService emailService;
 
     @InjectMocks
     private AuthService authService;
@@ -68,7 +74,7 @@ class AuthServiceTest {
     @Test
     void register_shouldReturnToken_whenValidRequest() {
         RegisterRequest request = new RegisterRequest("UserTest", "test@kryptos.com", "password123");
-        
+
         when(userRepository.findByEmail(request.email())).thenReturn(Optional.empty());
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.empty());
         when(passwordEncoder.encode(request.password())).thenReturn("encoded_password");
@@ -80,7 +86,7 @@ class AuthServiceTest {
         assertEquals("mock.jwt.token", response.token());
         assertEquals("UserTest", response.username());
         assertEquals("USER", response.role());
-        
+
         verify(userRepository).save(any(User.class));
         verify(auditService).log(eq(AuditAction.REGISTER), eq("UserTest"), eq("auth"), any());
     }
@@ -95,32 +101,94 @@ class AuthServiceTest {
     }
 
     @Test
-    void login_shouldReturnToken_whenValidCredentials() {
+    void login_shouldReturnToken_whenValidCredentials_and2faDisabled() {
         LoginRequest request = new LoginRequest("UserTest", "password123");
-        
+
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
         when(jwtService.generateToken("UserTest", "USER")).thenReturn("mock.jwt.token");
 
-        AuthResponse response = authService.login(request);
+        LoginResponse response = authService.login(request);
 
         assertNotNull(response);
+        assertEquals("authenticated", response.status());
         assertEquals("mock.jwt.token", response.token());
-        
+
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(jwtService).generateToken("UserTest", "USER");
         verify(auditService).log(eq(AuditAction.LOGIN), eq("UserTest"), eq("auth"), any());
+    }
+
+    @Test
+    void login_shouldReturn2faRequired_when2faEnabled() {
+        testUser.setTwoFaEnabled(true);
+        LoginRequest request = new LoginRequest("UserTest", "password123");
+
+        when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
+
+        LoginResponse response = authService.login(request);
+
+        assertEquals("2fa_required", response.status());
+        assertNull(response.token());
+        assertEquals("UserTest", response.username());
+
+        verify(emailService).sendTwoFaCode(eq("test@kryptos.com"), anyString());
+        verify(userRepository, atLeast(1)).save(any(User.class));
+    }
+
+    @Test
+    void verifyTwoFaCode_shouldReturnToken_whenCodeValid() {
+        testUser.setTwoFaEnabled(true);
+        testUser.setTwoFaCode("123456");
+        testUser.setTwoFaCodeExpiresAt(LocalDateTime.now().plusMinutes(5));
+
+        TwoFaVerifyRequest request = new TwoFaVerifyRequest("UserTest", "123456");
+
+        when(userRepository.findByUsername("UserTest")).thenReturn(Optional.of(testUser));
+        when(jwtService.generateToken("UserTest", "USER")).thenReturn("mock.jwt.token");
+
+        AuthResponse response = authService.verifyTwoFaCode(request);
+
+        assertEquals("mock.jwt.token", response.token());
+        assertNull(testUser.getTwoFaCode());
+        assertNull(testUser.getTwoFaCodeExpiresAt());
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    void verifyTwoFaCode_shouldFail_whenCodeInvalid() {
+        testUser.setTwoFaEnabled(true);
+        testUser.setTwoFaCode("123456");
+        testUser.setTwoFaCodeExpiresAt(LocalDateTime.now().plusMinutes(5));
+
+        TwoFaVerifyRequest request = new TwoFaVerifyRequest("UserTest", "999999");
+
+        when(userRepository.findByUsername("UserTest")).thenReturn(Optional.of(testUser));
+
+        assertThrows(IllegalArgumentException.class, () -> authService.verifyTwoFaCode(request));
+    }
+
+    @Test
+    void verifyTwoFaCode_shouldFail_whenCodeExpired() {
+        testUser.setTwoFaEnabled(true);
+        testUser.setTwoFaCode("123456");
+        testUser.setTwoFaCodeExpiresAt(LocalDateTime.now().minusMinutes(1));
+
+        TwoFaVerifyRequest request = new TwoFaVerifyRequest("UserTest", "123456");
+
+        when(userRepository.findByUsername("UserTest")).thenReturn(Optional.of(testUser));
+
+        assertThrows(Exception.class, () -> authService.verifyTwoFaCode(request));
     }
 
     @Test
     void login_shouldFail_whenWrongPassword() {
         LoginRequest request = new LoginRequest("UserTest", "wrongpassword");
-        
+
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, 
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> authService.login(request));
-                
+
         assertEquals("Invalid credentials", ex.getMessage());
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
         verify(auditService).log(eq(AuditAction.LOGIN_FAILED), eq("UserTest"), eq("auth"), any());
@@ -129,7 +197,7 @@ class AuthServiceTest {
     @Test
     void login_shouldLockAccount_afterMaxFailedAttempts() {
         LoginRequest request = new LoginRequest("UserTest", "wrongpassword");
-        
+
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
 
@@ -137,9 +205,9 @@ class AuthServiceTest {
             assertThrows(IllegalArgumentException.class, () -> authService.login(request));
         }
 
-        RateLimitExceededException ex = assertThrows(RateLimitExceededException.class, 
+        RateLimitExceededException ex = assertThrows(RateLimitExceededException.class,
                 () -> authService.login(request));
-                
+
         assertTrue(ex.getMessage().contains("Too many failed attempts"));
         verify(auditService, atLeast(5)).log(eq(AuditAction.LOGIN_FAILED), eq("UserTest"), eq("auth"), any());
     }
@@ -149,7 +217,7 @@ class AuthServiceTest {
         String resetToken = UUID.randomUUID().toString();
         String oldPasswordHash = "hash_of_old_password";
         testUser.setResetToken(resetToken);
-        testUser.setResetTokenExpiresAt(java.time.LocalDateTime.now().plusMinutes(15));
+        testUser.setResetTokenExpiresAt(LocalDateTime.now().plusMinutes(15));
         testUser.addToPasswordHistory(oldPasswordHash);
 
         PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "SamePassword123!");
@@ -165,7 +233,7 @@ class AuthServiceTest {
     void confirmPasswordReset_shouldAddOldPasswordToHistory() {
         String resetToken = UUID.randomUUID().toString();
         testUser.setResetToken(resetToken);
-        testUser.setResetTokenExpiresAt(java.time.LocalDateTime.now().plusMinutes(15));
+        testUser.setResetTokenExpiresAt(LocalDateTime.now().plusMinutes(15));
         testUser.setPassword("old_hash");
 
         PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "NewPassword123!");
