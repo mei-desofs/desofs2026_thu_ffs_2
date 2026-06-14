@@ -1,18 +1,24 @@
 package com.kryptos.auth.application;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.auth.application.dto.AuthResponse;
 import com.kryptos.auth.application.dto.LoginRequest;
+import com.kryptos.auth.application.dto.PasswordResetConfirm;
+import com.kryptos.auth.application.dto.PasswordResetRequest;
 import com.kryptos.auth.application.dto.RegisterRequest;
+import com.kryptos.shared.exception.InvalidTokenException;
 import com.kryptos.shared.security.JwtService;
 import com.kryptos.user.domain.Role;
 import com.kryptos.user.domain.User;
@@ -100,5 +106,41 @@ public class AuthService {
             }
             throw new IllegalArgumentException("Invalid credentials");
         }
+    }
+
+    @Transactional
+    public void requestPasswordReset(PasswordResetRequest request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new com.kryptos.shared.exception.ResourceNotFoundException(
+                    "User with email " + request.email() + " not found"));
+
+        String resetToken = UUID.randomUUID().toString();
+        user.setResetToken(resetToken);
+        user.setResetTokenExpiresAt(LocalDateTime.now().plusMinutes(15));
+        userRepository.save(user);
+
+        auditService.log(AuditAction.PASSWORD_RESET_REQUESTED, request.email(), "auth",
+                "Password reset requested for user");
+
+        // TODO: emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
+    }
+
+    @Transactional
+    public void confirmPasswordReset(PasswordResetConfirm confirm) {
+        User user = userRepository.findByResetToken(confirm.token())
+                .orElseThrow(() -> new InvalidTokenException("Invalid reset token"));
+
+        if (user.getResetTokenExpiresAt() == null ||
+            user.getResetTokenExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new InvalidTokenException("Reset token has expired");
+        }
+
+        user.setPassword(passwordEncoder.encode(confirm.newPassword()));
+        user.setResetToken(null);
+        user.setResetTokenExpiresAt(null);
+        userRepository.save(user);
+
+        auditService.log(AuditAction.PASSWORD_RESET_COMPLETED, user.getUsername(), "auth",
+                "Password reset completed successfully");
     }
 }

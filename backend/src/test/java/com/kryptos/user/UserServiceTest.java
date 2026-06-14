@@ -27,7 +27,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.shared.exception.ForbiddenException;
+import com.kryptos.shared.exception.ResourceNotFoundException;
 import com.kryptos.user.application.UserService;
+import com.kryptos.user.application.dto.UpdateUserRequest;
 import com.kryptos.user.application.dto.UserResponse;
 import com.kryptos.user.domain.Role;
 import com.kryptos.user.domain.User;
@@ -115,5 +117,52 @@ class UserServiceTest {
         assertEquals(Role.ADMIN, response.role());
         verify(userRepository).save(targetUser);
         verify(auditService).log(eq(AuditAction.USER_ROLE_UPDATE), eq("admin_user"), eq("user"), any());
+    }
+
+    @Test
+    void update_shouldChangeEmail_whenEmailIsValid() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(userRepository.existsByEmailAndIdNot("newemail@test.com", targetUserId)).thenReturn(false);
+        when(userRepository.save(any())).thenReturn(targetUser);
+
+        UpdateUserRequest request = new UpdateUserRequest("newemail@test.com", "newusername");
+        userService.update(targetUserId, request);
+
+        assertEquals("newemail@test.com", targetUser.getEmail());
+        assertEquals("newusername", targetUser.getUsername());
+        verify(userRepository).save(targetUser);
+        verify(auditService).log(eq(AuditAction.USER_PROFILE_UPDATE), eq("admin_user"), eq("user"), any());
+    }
+
+    @Test
+    void update_shouldThrow_whenEmailAlreadyInUse() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(userRepository.existsByEmailAndIdNot("taken@test.com", targetUserId)).thenReturn(true);
+
+        UpdateUserRequest request = new UpdateUserRequest("taken@test.com", "username");
+        assertThrows(IllegalArgumentException.class,
+                () -> userService.update(targetUserId, request));
+    }
+
+    @Test
+    void update_shouldThrow_whenUserNotFound() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.empty());
+
+        UpdateUserRequest request = new UpdateUserRequest("newemail@test.com", "username");
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.update(targetUserId, request));
+    }
+
+    @Test
+    void update_shouldAllowPartialUpdate_withNullEmail() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(userRepository.save(any())).thenReturn(targetUser);
+
+        UpdateUserRequest request = new UpdateUserRequest(null, "newusername");
+        userService.update(targetUserId, request);
+
+        assertEquals("target@kryptos.com", targetUser.getEmail()); // Email não mudou
+        assertEquals("newusername", targetUser.getUsername());
+        verify(userRepository).save(targetUser);
     }
 }
