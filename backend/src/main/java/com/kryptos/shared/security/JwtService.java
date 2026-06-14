@@ -1,7 +1,13 @@
 package com.kryptos.shared.security;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.function.Function;
 
 import javax.crypto.SecretKey;
@@ -13,9 +19,13 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class JwtService {
+
+    private final RevokedTokenRepository revokedTokenRepository;
 
     @Value("${jwt.secret}")
     private String secret;
@@ -48,9 +58,40 @@ public class JwtService {
             String tokenUsername = extractUsername(token);
             return username != null
                     && username.equals(tokenUsername)
-                    && !isTokenExpired(token);
+                    && !isTokenExpired(token)
+                    && !isTokenRevoked(token);
         } catch (JwtException | IllegalArgumentException ex) {
             return false;
+        }
+    }
+
+    public void revokeToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            LocalDateTime expiresAt = Instant.ofEpochMilli(
+                    claims.getExpiration().getTime())
+                    .atZone(ZoneId.systemDefault()).toLocalDateTime();
+
+            String tokenHash = hashToken(token);
+            revokedTokenRepository.save(new RevokedToken(tokenHash, expiresAt));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to revoke token", e);
+        }
+    }
+
+    public boolean isTokenRevoked(String token) {
+        String tokenHash = hashToken(token);
+        return revokedTokenRepository.existsByTokenHashAndExpiresAtAfter(
+                tokenHash, LocalDateTime.now());
+    }
+
+    private String hashToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
         }
     }
 

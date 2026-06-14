@@ -2,10 +2,15 @@ package com.kryptos.shared.security;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
+@ExtendWith(MockitoExtension.class)
 class JwtServiceTest {
 
     private static final String TEST_SECRET = "this-is-a-secret-that-is-at-least-32-bytes-long!!";
@@ -13,9 +18,12 @@ class JwtServiceTest {
 
     private JwtService jwtService;
 
+    @Mock
+    private RevokedTokenRepository revokedTokenRepository;
+
     @BeforeEach
     void setUp() {
-        jwtService = new JwtService();
+        jwtService = new JwtService(revokedTokenRepository);
         ReflectionTestUtils.setField(jwtService, "secret", TEST_SECRET);
         ReflectionTestUtils.setField(jwtService, "expiration", TEST_EXPIRATION);
     }
@@ -75,7 +83,7 @@ class JwtServiceTest {
 
     @Test
     void constructor_shouldThrow_whenSecretIsTooShort() {
-        JwtService shortSecretService = new JwtService();
+        JwtService shortSecretService = new JwtService(mock(RevokedTokenRepository.class));
         ReflectionTestUtils.setField(shortSecretService, "secret", "short");
         ReflectionTestUtils.setField(shortSecretService, "expiration", TEST_EXPIRATION);
         assertThrows(IllegalStateException.class,
