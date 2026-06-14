@@ -154,6 +154,7 @@ public class CredentialIntegrationTest {
                 .header("Authorization", "Bearer " + user1Token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
+            .andDo(org.springframework.test.web.servlet.result.MockMvcResultHandlers.print())
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.serviceName").value("Service"));
     }
