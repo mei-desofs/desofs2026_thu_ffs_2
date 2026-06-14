@@ -25,6 +25,7 @@ public final class AuditAction {
     public static final String IMPORT = "IMPORT";
     public static final String SECURE_WIPE = "SECURE_WIPE";
     public static final String SECURE_WIPE_FAILED = "SECURE_WIPE_FAILED";
+    public static final String LOGOUT = "LOGOUT";
 
     // Authorization denied events (V16.3.2 / V16.3.3)
     public static final String ACCESS_DENIED_VAULT = "ACCESS_DENIED_VAULT";
