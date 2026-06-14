@@ -3,6 +3,7 @@ package com.kryptos.credential.api;
 import com.kryptos.credential.application.CredentialService;
 import com.kryptos.credential.application.dto.CreateCredentialRequest;
 import com.kryptos.credential.application.dto.CredentialResponse;
+import com.kryptos.credential.application.dto.UpdateCredentialRequest;
 import com.kryptos.shared.security.KryptosUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,16 @@ public class CredentialController {
             @AuthenticationPrincipal KryptosUserDetails principal) {
         UUID ownerId = principal.getId();
         return ResponseEntity.ok(credentialService.findById(id, ownerId));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<CredentialResponse> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateCredentialRequest request,
+            @AuthenticationPrincipal KryptosUserDetails principal) {
+        UUID ownerId = principal.getId();
+        return ResponseEntity.ok(credentialService.update(id, request, ownerId));
     }
 
     @DeleteMapping("/{id}")
