@@ -79,9 +79,13 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponse update(UUID userId, UpdateUserRequest request) {
+    public UserResponse update(UUID userId, UpdateUserRequest request, String currentUsername, boolean isAdmin) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!isAdmin && !user.getUsername().equals(currentUsername)) {
+            throw new ForbiddenException("Unauthorized: You can only update your own profile");
+        }
 
         if (request.email() != null && !request.email().isBlank()) {
             if (userRepository.existsByEmailAndIdNot(request.email(), userId)) {
@@ -94,7 +98,6 @@ public class UserService {
             user.setUsername(request.username());
         }
 
-        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         auditService.log(AuditAction.USER_PROFILE_UPDATE, currentUsername, "user",
                 String.format("Updated profile for user %s", userId));
 
