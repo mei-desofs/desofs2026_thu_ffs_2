@@ -37,6 +37,7 @@ import com.kryptos.auth.application.dto.PasswordResetConfirm;
 import com.kryptos.auth.application.dto.RegisterRequest;
 import com.kryptos.auth.application.dto.TwoFaVerifyRequest;
 import com.kryptos.shared.email.EmailService;
+import com.kryptos.shared.exception.InvalidTokenException;
 import com.kryptos.shared.exception.RateLimitExceededException;
 import com.kryptos.shared.security.JwtService;
 import com.kryptos.auth.application.dto.PasswordResetConfirm;
@@ -247,7 +248,6 @@ class AuthServiceTest {
         verify(auditService).log(eq(AuditAction.PASSWORD_RESET_COMPLETED), eq("UserTest"), eq("auth"), any());
         assertTrue(testUser.getPasswordHistory().contains("old_hash"));
     }
-}
 
     @Test
     void login_shouldBlockAccess_whenAccountLockedUntilAdmin() {

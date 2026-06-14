@@ -141,6 +141,27 @@
                 </configuration>
             </plugin>
 
+            <!-- Sonar Code Coverage: JaCoCo -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- SAST: SpotBugs + Find Security Bugs -->
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
