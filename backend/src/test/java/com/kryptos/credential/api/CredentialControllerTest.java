@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kryptos.credential.application.CredentialService;
 import com.kryptos.credential.application.dto.CreateCredentialRequest;
 import com.kryptos.credential.application.dto.CredentialResponse;
+import com.kryptos.credential.application.dto.UpdateCredentialRequest;
 import com.kryptos.shared.security.JwtService;
 import com.kryptos.shared.security.KryptosUserDetails;
 import com.kryptos.user.domain.Role;
@@ -139,5 +140,41 @@ class CredentialControllerTest {
         mockMvc.perform(delete("/api/credentials/" + credId)
                         .with(user(userPrincipal)).with(csrf()))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void update_shouldReturn401_whenUnauthenticated() throws Exception {
+        UpdateCredentialRequest request = new UpdateCredentialRequest("GitHub", "user", "secret", null, null);
+        mockMvc.perform(put("/api/credentials/" + UUID.randomUUID()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void update_shouldReturn200_whenValidRequest() throws Exception {
+        UUID credId = UUID.randomUUID();
+        UpdateCredentialRequest request = new UpdateCredentialRequest("GitHub", "user", "secret", "https://github.com", null);
+        CredentialResponse response = new CredentialResponse(credId, "GitHub", "user", "https://github.com", null, vaultId);
+
+        when(credentialService.update(any(UUID.class), any(UpdateCredentialRequest.class), any(UUID.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/credentials/" + credId)
+                        .with(user(userPrincipal)).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void update_shouldReturn400_whenServiceNameIsBlank() throws Exception {
+        UUID credId = UUID.randomUUID();
+        UpdateCredentialRequest request = new UpdateCredentialRequest("", "user", "secret", null, null);
+
+        mockMvc.perform(put("/api/credentials/" + credId)
+                        .with(user(userPrincipal)).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
     }
 }
