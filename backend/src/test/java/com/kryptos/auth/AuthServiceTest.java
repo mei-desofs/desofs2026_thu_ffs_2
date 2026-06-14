@@ -247,7 +247,6 @@ class AuthServiceTest {
         verify(auditService).log(eq(AuditAction.PASSWORD_RESET_COMPLETED), eq("UserTest"), eq("auth"), any());
         assertTrue(testUser.getPasswordHistory().contains("old_hash"));
     }
-}
 
     @Test
     void login_shouldBlockAccess_whenAccountLockedUntilAdmin() {
