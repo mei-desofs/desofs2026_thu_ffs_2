@@ -248,3 +248,113 @@ class AuthServiceTest {
         assertTrue(testUser.getPasswordHistory().contains("old_hash"));
     }
 }
+
+    @Test
+    void login_shouldBlockAccess_whenAccountLockedUntilAdmin() {
+        testUser.setAccountLockedUntilAdmin(true);
+        LoginRequest request = new LoginRequest("UserTest", "password123");
+
+        when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
+
+        RateLimitExceededException ex = assertThrows(RateLimitExceededException.class,
+                () -> authService.login(request));
+
+        assertTrue(ex.getMessage().contains("Account locked"));
+        verify(auditService).log(eq(AuditAction.LOGIN_FAILED), eq("UserTest"), eq("auth"), any());
+    }
+
+    @Test
+    void requestPasswordReset_shouldThrow_whenTooManyAttempts() {
+        String email = "test@kryptos.com";
+        com.kryptos.auth.application.dto.PasswordResetRequest request =
+                new com.kryptos.auth.application.dto.PasswordResetRequest(email);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(testUser));
+
+        for (int i = 0; i < 3; i++) {
+            authService.requestPasswordReset(request);
+        }
+
+        RateLimitExceededException ex = assertThrows(RateLimitExceededException.class,
+                () -> authService.requestPasswordReset(request));
+
+        assertTrue(ex.getMessage().contains("Too many password reset requests"));
+        verify(auditService, atLeast(4)).log(eq(AuditAction.PASSWORD_RESET_REQUESTED), eq(email), eq("auth"), any());
+    }
+
+    @Test
+    void confirmPasswordReset_shouldThrow_whenTokenExpired() {
+        String resetToken = UUID.randomUUID().toString();
+        testUser.setResetToken(resetToken);
+        testUser.setResetTokenExpiresAt(java.time.LocalDateTime.now().minusMinutes(1));
+
+        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "NewPassword123!");
+
+        when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.of(testUser));
+
+        assertThrows(InvalidTokenException.class, () -> authService.confirmPasswordReset(confirm));
+    }
+
+    @Test
+    void confirmPasswordReset_shouldThrow_whenTokenNotFound() {
+        String resetToken = UUID.randomUUID().toString();
+
+        when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.empty());
+
+        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "NewPassword123!");
+
+        assertThrows(InvalidTokenException.class, () -> authService.confirmPasswordReset(confirm));
+    }
+
+    @Test
+    void requestPasswordReset_shouldThrow_whenUserNotFound() {
+        String email = "nonexistent@kryptos.com";
+        com.kryptos.auth.application.dto.PasswordResetRequest request =
+                new com.kryptos.auth.application.dto.PasswordResetRequest(email);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        assertThrows(com.kryptos.shared.exception.ResourceNotFoundException.class,
+                () -> authService.requestPasswordReset(request));
+    }
+
+    @Test
+    void confirmPasswordReset_shouldNotReusePassword_fromHistory() {
+        String resetToken = UUID.randomUUID().toString();
+        String oldPasswordHash = "hash_of_old_password";
+
+        testUser.setResetToken(resetToken);
+        testUser.setResetTokenExpiresAt(java.time.LocalDateTime.now().plusMinutes(15));
+        testUser.addToPasswordHistory(oldPasswordHash);
+
+        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "OldPassword123");
+
+        when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("OldPassword123", oldPasswordHash)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> authService.confirmPasswordReset(confirm),
+                "Should not allow reusing old passwords");
+    }
+
+    @Test
+    void register_shouldThrow_whenEmailAlreadyExists() {
+        RegisterRequest request = new RegisterRequest("NewUser", "test@kryptos.com", "password123");
+
+        when(userRepository.findByEmail(request.email())).thenReturn(Optional.of(testUser));
+
+        assertThrows(IllegalArgumentException.class, () -> authService.register(request));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void register_shouldThrow_whenUsernameAlreadyExists() {
+        RegisterRequest request = new RegisterRequest("UserTest", "new@kryptos.com", "password123");
+
+        when(userRepository.findByEmail(request.email())).thenReturn(Optional.empty());
+        when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
+
+        assertThrows(IllegalArgumentException.class, () -> authService.register(request));
+        verify(userRepository, never()).save(any(User.class));
+    }
+}
