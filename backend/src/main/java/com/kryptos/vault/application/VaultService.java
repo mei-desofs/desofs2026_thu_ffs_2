@@ -22,12 +22,20 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class VaultService {
 
+    private static final int MAX_VAULTS_PER_USER = 50;
+
     private final VaultRepository vaultRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
 
     @Transactional
     public VaultResponse create(CreateVaultRequest request, UUID ownerId) {
+        long currentCount = vaultRepository.countByOwnerId(ownerId);
+        if (currentCount >= MAX_VAULTS_PER_USER) {
+            throw new IllegalArgumentException(
+                    String.format("Maximum number of vaults (%d) reached", MAX_VAULTS_PER_USER));
+        }
+
         Vault vault = Vault.builder()
                 .name(request.name())
                 .description(request.description())
@@ -49,15 +57,23 @@ public class VaultService {
     }
 
     public VaultResponse findById(UUID id, UUID ownerId) {
-        Vault vault = vaultRepository.findByIdAndOwnerId(id, ownerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vault not found"));
+        Vault vault = vaultRepository.findByIdAndOwnerId(id, ownerId).orElse(null);
+        if (vault == null) {
+            auditService.log(AuditAction.ACCESS_DENIED_VAULT, currentUsername(), "vault:" + id,
+                    "DENIED read: vault not found or not owned");
+            throw new ResourceNotFoundException("Vault not found");
+        }
         return toResponse(vault, ownerId);
     }
 
     @Transactional
     public VaultResponse update(UUID vaultId, UpdateVaultRequest request, UUID ownerId) {
-        Vault vault = vaultRepository.findByIdAndOwnerId(vaultId, ownerId)
-                .orElseThrow(() -> new ForbiddenException("Vault not found or access denied"));
+        Vault vault = vaultRepository.findByIdAndOwnerId(vaultId, ownerId).orElse(null);
+        if (vault == null) {
+            auditService.log(AuditAction.ACCESS_DENIED_VAULT, currentUsername(), "vault:" + vaultId,
+                    "DENIED update: vault not found or not owned");
+            throw new ForbiddenException("Vault not found or access denied");
+        }
 
         vault.setName(request.name());
         vault.setDescription(request.description());
@@ -72,6 +88,8 @@ public class VaultService {
     @Transactional
     public void delete(UUID id, UUID ownerId) {
         if (!vaultRepository.existsByIdAndOwnerId(id, ownerId)) {
+            auditService.log(AuditAction.ACCESS_DENIED_VAULT, currentUsername(), "vault:" + id,
+                    "DENIED delete: vault not found or not owned");
             throw new ForbiddenException("Vault not found or access denied");
         }
         vaultRepository.deleteById(id);
