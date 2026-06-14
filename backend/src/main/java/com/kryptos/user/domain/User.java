@@ -61,4 +61,7 @@ public class User implements Serializable {
         }
         this.passwordHistory = String.join(",", history);
     }
+
+    @Column(name = "account_locked_until_admin")
+    private boolean accountLockedUntilAdmin;
 }
