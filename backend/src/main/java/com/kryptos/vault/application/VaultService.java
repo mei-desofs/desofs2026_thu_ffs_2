@@ -6,6 +6,7 @@ import com.kryptos.shared.exception.ResourceNotFoundException;
 import com.kryptos.shared.exception.ForbiddenException;
 import com.kryptos.user.domain.UserRepository;
 import com.kryptos.vault.application.dto.CreateVaultRequest;
+import com.kryptos.vault.application.dto.UpdateVaultRequest;
 import com.kryptos.vault.application.dto.VaultResponse;
 import com.kryptos.vault.domain.Vault;
 import com.kryptos.vault.domain.VaultRepository;
@@ -50,6 +51,21 @@ public class VaultService {
     public VaultResponse findById(UUID id, UUID ownerId) {
         Vault vault = vaultRepository.findByIdAndOwnerId(id, ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vault not found"));
+        return toResponse(vault, ownerId);
+    }
+
+    @Transactional
+    public VaultResponse update(UUID vaultId, UpdateVaultRequest request, UUID ownerId) {
+        Vault vault = vaultRepository.findByIdAndOwnerId(vaultId, ownerId)
+                .orElseThrow(() -> new ForbiddenException("Vault not found or access denied"));
+
+        vault.setName(request.name());
+        vault.setDescription(request.description());
+        vaultRepository.save(vault);
+
+        auditService.log(AuditAction.VAULT_UPDATE, currentUsername(), "vault:" + vaultId,
+                "Updated vault: " + request.name());
+
         return toResponse(vault, ownerId);
     }
 

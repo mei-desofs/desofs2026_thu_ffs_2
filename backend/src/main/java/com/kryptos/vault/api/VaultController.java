@@ -3,6 +3,7 @@ package com.kryptos.vault.api;
 import com.kryptos.shared.security.KryptosUserDetails;
 import com.kryptos.vault.application.VaultService;
 import com.kryptos.vault.application.dto.CreateVaultRequest;
+import com.kryptos.vault.application.dto.UpdateVaultRequest;
 import com.kryptos.vault.application.dto.VaultResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,16 @@ public class VaultController {
             @AuthenticationPrincipal KryptosUserDetails principal) {
         UUID ownerId = principal.getId();
         return ResponseEntity.ok(vaultService.findById(id, ownerId));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<VaultResponse> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateVaultRequest request,
+            @AuthenticationPrincipal KryptosUserDetails principal) {
+        UUID ownerId = principal.getId();
+        return ResponseEntity.ok(vaultService.update(id, request, ownerId));
     }
 
     @DeleteMapping("/{id}")
