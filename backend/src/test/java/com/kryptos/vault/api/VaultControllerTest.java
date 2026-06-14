@@ -7,6 +7,7 @@ import com.kryptos.user.domain.Role;
 import com.kryptos.user.domain.User;
 import com.kryptos.vault.application.VaultService;
 import com.kryptos.vault.application.dto.CreateVaultRequest;
+import com.kryptos.vault.application.dto.UpdateVaultRequest;
 import com.kryptos.vault.application.dto.VaultResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -104,6 +105,47 @@ class VaultControllerTest {
 
         mockMvc.perform(get("/api/vaults/" + vaultId).with(user(userPrincipal)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void update_shouldReturn401_whenUnauthenticated() throws Exception {
+        mockMvc.perform(put("/api/vaults/" + UUID.randomUUID())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateVaultRequest("New Name", "desc"))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void update_shouldReturn200_whenValidRequest() throws Exception {
+        UUID vaultId = UUID.randomUUID();
+        VaultResponse response = new VaultResponse(vaultId, "New Name", "desc", ownerId);
+        when(vaultService.update(any(UUID.class), any(UpdateVaultRequest.class), any(UUID.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/vaults/" + vaultId)
+                        .with(user(userPrincipal)).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateVaultRequest("New Name", "desc"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void update_shouldReturn400_whenNameIsBlank() throws Exception {
+        mockMvc.perform(put("/api/vaults/" + UUID.randomUUID())
+                        .with(user(userPrincipal)).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateVaultRequest("", "desc"))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void update_shouldReturn400_whenNameTooLong() throws Exception {
+        String longName = "a".repeat(101);
+        mockMvc.perform(put("/api/vaults/" + UUID.randomUUID())
+                        .with(user(userPrincipal)).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateVaultRequest(longName, "desc"))))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
