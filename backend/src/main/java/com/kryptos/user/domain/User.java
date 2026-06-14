@@ -46,6 +46,19 @@ public class User implements Serializable {
     @Column(columnDefinition = "TEXT")
     private String passwordHistory;
 
+    @Column(name = "two_fa_enabled", nullable = false)
+    @Builder.Default
+    private boolean twoFaEnabled = false;
+
+    @Column(name = "two_fa_code")
+    private String twoFaCode;
+
+    @Column(name = "two_fa_code_expires_at")
+    private LocalDateTime twoFaCodeExpiresAt;
+
+    @Column(name = "account_locked_until_admin")
+    private boolean accountLockedUntilAdmin;
+
     public List<String> getPasswordHistoryList() {
         if (passwordHistory == null || passwordHistory.isEmpty()) {
             return new ArrayList<>();
@@ -61,7 +74,4 @@ public class User implements Serializable {
         }
         this.passwordHistory = String.join(",", history);
     }
-
-    @Column(name = "account_locked_until_admin")
-    private boolean accountLockedUntilAdmin;
 }

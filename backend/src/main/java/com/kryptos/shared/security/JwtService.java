@@ -23,6 +23,8 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long expiration;
 
+    private static final String AUDIENCE = "kryptos";
+
     public String generateToken(String username, String role) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expiration);
@@ -30,6 +32,7 @@ public class JwtService {
         return Jwts.builder()
                 .subject(username)
                 .claim("role", role)
+                .audience().add(AUDIENCE).and()
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(getSigningKey(), Jwts.SIG.HS256)
@@ -62,6 +65,7 @@ public class JwtService {
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
+                .requireAudience(AUDIENCE)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
