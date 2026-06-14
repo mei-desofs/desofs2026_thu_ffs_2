@@ -16,6 +16,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -76,5 +78,33 @@ class AuditControllerTest {
     void findAll_shouldReturn401WhenUnauthenticated() throws Exception {
         mockMvc.perform(get("/api/audit"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser", roles = "USER")
+    void getMyLoginHistory_shouldReturn200ForAuthenticatedUser() throws Exception {
+        Page<AuditLog> page = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(auditLogRepository.findByPerformedByAndActionInOrderByTimestampDesc(
+                eq("testuser"), anyList(), any(PageRequest.class))).thenReturn(page);
+
+        mockMvc.perform(get("/api/audit/my-login-history"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getMyLoginHistory_shouldReturn401WhenUnauthenticated() throws Exception {
+        mockMvc.perform(get("/api/audit/my-login-history"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "anotheruser", roles = "USER")
+    void getMyLoginHistory_shouldFilterByCurrentUsername() throws Exception {
+        Page<AuditLog> page = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(auditLogRepository.findByPerformedByAndActionInOrderByTimestampDesc(
+                eq("anotheruser"), anyList(), any(PageRequest.class))).thenReturn(page);
+
+        mockMvc.perform(get("/api/audit/my-login-history"))
+                .andExpect(status().isOk());
     }
 }
