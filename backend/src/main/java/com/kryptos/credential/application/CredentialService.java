@@ -4,6 +4,7 @@ import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.credential.application.dto.CreateCredentialRequest;
 import com.kryptos.credential.application.dto.CredentialResponse;
+import com.kryptos.credential.application.dto.UpdateCredentialRequest;
 import com.kryptos.credential.domain.Credential;
 import com.kryptos.credential.domain.CredentialRepository;
 import com.kryptos.shared.encryption.EncryptionService;
@@ -64,6 +65,26 @@ public class CredentialService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional
+    public CredentialResponse update(UUID id, UpdateCredentialRequest request, UUID ownerId) {
+        Credential credential = credentialRepository.findByIdAndVaultOwnerId(id, ownerId)
+                .orElseThrow(() -> new ForbiddenException("Credential not found or access denied"));
+
+        credential.setServiceName(request.serviceName());
+        credential.setUsername(request.username());
+        credential.setEncryptedPassword(encryptionService.encrypt(request.password()));
+        credential.setUrl(request.url());
+        credential.setNotes(request.notes());
+
+        credentialRepository.save(credential);
+
+        auditService.log(AuditAction.CREDENTIAL_UPDATE, currentUsername(),
+                "credential:" + id,
+                "Updated credential for service: " + request.serviceName());
+
+        return toResponse(credential);
     }
 
     public CredentialResponse findById(UUID id, UUID ownerId) {
