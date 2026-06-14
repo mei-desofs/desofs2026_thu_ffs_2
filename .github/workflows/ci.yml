@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, dev ]
 
 jobs:
   build-and-test:
@@ -58,6 +58,7 @@ jobs:
     name: SAST (SpotBugs + Find Security Bugs + SonarCloud)
     runs-on: ubuntu-latest
     needs: build-and-test
+    if: github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
 
     steps:
       - name: Checkout
@@ -98,7 +99,15 @@ jobs:
           -Dsonar.projectKey=mei-desofs-kryptos
           -Dsonar.organization=mei-desofs-kryptos
           -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
           -DskipTests
+
+      - name: SonarQube Quality Gate check
+        id: sonarqube-quality-gate-check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Upload SonarCloud Task Report
         if: always()
@@ -111,6 +120,7 @@ jobs:
     name: SCA (OWASP Dependency-Check)
     runs-on: ubuntu-latest
     needs: build-and-test
+    if: github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
 
     steps:
       - name: Checkout
@@ -142,6 +152,7 @@ jobs:
     name: DAST (OWASP ZAP Baseline)
     runs-on: ubuntu-latest
     needs: build-and-test
+    if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
     permissions:
       contents: read
 
