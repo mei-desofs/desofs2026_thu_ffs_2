@@ -62,25 +62,25 @@ public class CredentialIntegrationTest {
         userRepository.deleteAll();
 
         // Setup User 1
-        user1 = User.builder().id(UUID.randomUUID()).username("user1").email("user1@test.com").password("pass1").role(Role.USER).build();
+        user1 = User.builder().username("user1").email("user1@test.com").password("pass1").role(Role.USER).build();
         userRepository.save(user1);
         user1Token = jwtService.generateToken(user1.getUsername(), user1.getRole().name());
 
-        Vault vault1 = Vault.builder().id(UUID.randomUUID()).name("Vault 1").owner(user1).build();
+        Vault vault1 = Vault.builder().name("Vault 1").owner(user1).build();
         vaultRepository.save(vault1);
 
-        user1Credential = Credential.builder().id(UUID.randomUUID()).serviceName("Service 1").username("user").encryptedPassword("enc").vault(vault1).build();
+        user1Credential = Credential.builder().serviceName("Service 1").username("user").encryptedPassword("enc").vault(vault1).build();
         credentialRepository.save(user1Credential);
 
         // Setup User 2
-        user2 = User.builder().id(UUID.randomUUID()).username("user2").email("user2@test.com").password("pass2").role(Role.USER).build();
+        user2 = User.builder().username("user2").email("user2@test.com").password("pass2").role(Role.USER).build();
         userRepository.save(user2);
         user2Token = jwtService.generateToken(user2.getUsername(), user2.getRole().name());
 
-        Vault vault2 = Vault.builder().id(UUID.randomUUID()).name("Vault 2").owner(user2).build();
+        Vault vault2 = Vault.builder().name("Vault 2").owner(user2).build();
         vaultRepository.save(vault2);
 
-        user2Credential = Credential.builder().id(UUID.randomUUID()).serviceName("Service 2").username("user").encryptedPassword("enc").vault(vault2).build();
+        user2Credential = Credential.builder().serviceName("Service 2").username("user").encryptedPassword("enc").vault(vault2).build();
         credentialRepository.save(user2Credential);
     }
 
