@@ -40,8 +40,10 @@ public class AuthService {
     private final ConcurrentHashMap<String, Instant> lockouts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Integer> resetAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> resetLockouts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Integer> resetFailures = new ConcurrentHashMap<>();
     private static final int MAX_ATTEMPTS = 5;
     private static final int MAX_RESET_ATTEMPTS = 3;
+    private static final int MAX_RESET_FAILURES = 3;
     private static final int RESET_LOCKOUT_SECONDS = 300;
 
     public AuthResponse register(RegisterRequest request) {
@@ -69,16 +71,23 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
         String providedId = request.username();
-        
+
         String cacheKey = userRepository.findByUsername(providedId)
                 .or(() -> userRepository.findByEmail(providedId))
                 .map(User::getUsername)
-                .orElse(providedId); 
+                .orElse(providedId);
+
+        User userOpt = userRepository.findByUsername(cacheKey).orElse(null);
+        if (userOpt != null && userOpt.isAccountLockedUntilAdmin()) {
+            auditService.log(AuditAction.LOGIN_FAILED, cacheKey, "auth",
+                    "Login blocked - account locked by admin");
+            throw new com.kryptos.shared.exception.RateLimitExceededException("Account locked. Contact administrator.");
+        }
 
         if (lockouts.containsKey(cacheKey) && lockouts.get(cacheKey).isAfter(Instant.now())) {
             auditService.log(AuditAction.LOGIN_FAILED, cacheKey, "auth",
                     "Login blocked - account locked due to " + MAX_ATTEMPTS + " failed attempts");
-            throw new com.kryptos.shared.exception.RateLimitExceededException("Too many failed attempts. Try again later."); 
+            throw new com.kryptos.shared.exception.RateLimitExceededException("Too many failed attempts. Try again later.");
         }
 
         try {
@@ -163,10 +172,14 @@ public class AuthService {
     @Transactional
     public void confirmPasswordReset(PasswordResetConfirm confirm) {
         User user = userRepository.findByResetToken(confirm.token())
-                .orElseThrow(() -> new InvalidTokenException("Invalid reset token"));
+                .orElseThrow(() -> {
+                    incrementResetFailure(confirm.token());
+                    return new InvalidTokenException("Invalid reset token");
+                });
 
         if (user.getResetTokenExpiresAt() == null ||
             user.getResetTokenExpiresAt().isBefore(LocalDateTime.now())) {
+            incrementResetFailure(user.getUsername());
             throw new InvalidTokenException("Reset token has expired");
         }
 
@@ -179,9 +192,23 @@ public class AuthService {
         user.setPassword(encodedPassword);
         user.setResetToken(null);
         user.setResetTokenExpiresAt(null);
+        resetFailures.remove(user.getUsername());
         userRepository.save(user);
 
         auditService.log(AuditAction.PASSWORD_RESET_COMPLETED, user.getUsername(), "auth",
                 "Password reset completed successfully");
+    }
+
+    private void incrementResetFailure(String username) {
+        int failures = resetFailures.getOrDefault(username, 0) + 1;
+        resetFailures.put(username, failures);
+
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user != null && failures >= MAX_RESET_FAILURES) {
+            user.setAccountLockedUntilAdmin(true);
+            userRepository.save(user);
+            auditService.log(AuditAction.LOGIN_FAILED, username, "auth",
+                    "Account locked after " + MAX_RESET_FAILURES + " failed password reset attempts");
+        }
     }
 }
