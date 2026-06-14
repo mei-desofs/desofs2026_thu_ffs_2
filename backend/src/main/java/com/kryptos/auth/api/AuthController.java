@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.kryptos.auth.application.AuthService;
 import com.kryptos.auth.application.dto.AuthResponse;
 import com.kryptos.auth.application.dto.LoginRequest;
+import com.kryptos.auth.application.dto.PasswordResetConfirm;
+import com.kryptos.auth.application.dto.PasswordResetRequest;
 import com.kryptos.auth.application.dto.RegisterRequest;
 
 import jakarta.validation.Valid;
@@ -29,5 +31,19 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/request-reset")
+    public ResponseEntity<Void> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest request) {
+        authService.requestPasswordReset(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/confirm-reset")
+    public ResponseEntity<Void> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirm confirm) {
+        authService.confirmPasswordReset(confirm);
+        return ResponseEntity.ok().build();
     }
 }
