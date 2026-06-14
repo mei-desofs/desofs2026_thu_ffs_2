@@ -4,6 +4,7 @@ import com.kryptos.audit.application.AuditService;
 import com.kryptos.credential.application.CredentialService;
 import com.kryptos.credential.application.dto.CreateCredentialRequest;
 import com.kryptos.credential.application.dto.CredentialResponse;
+import com.kryptos.credential.application.dto.UpdateCredentialRequest;
 import com.kryptos.credential.domain.Credential;
 import com.kryptos.credential.domain.CredentialRepository;
 import com.kryptos.shared.encryption.EncryptionService;
@@ -197,5 +198,41 @@ class CredentialServiceTest {
 
         verify(credentialRepository).deleteById(credId);
         verify(auditService).log(any(), eq("testuser"), any(), any());
+    }
+
+    @Test
+    void update_shouldEncryptPasswordAndSave() {
+        UUID credId = UUID.randomUUID();
+        UpdateCredentialRequest request = new UpdateCredentialRequest(
+                "New GitHub", "newuser@email.com", "newPassword", "https://github.com", "updated notes");
+
+        Credential existing = Credential.builder()
+                .id(credId).serviceName("GitHub").username("user@email.com")
+                .encryptedPassword("oldEncrypted").url("https://github.com").vault(vault).build();
+
+        when(credentialRepository.findByIdAndVaultOwnerId(credId, ownerId)).thenReturn(Optional.of(existing));
+        when(encryptionService.encrypt("newPassword")).thenReturn("newEncryptedValue");
+        when(credentialRepository.save(any(Credential.class))).thenReturn(existing);
+
+        CredentialResponse response = credentialService.update(credId, request, ownerId);
+
+        assertNotNull(response);
+        assertEquals("New GitHub", response.serviceName());
+        verify(encryptionService).encrypt("newPassword");
+        verify(credentialRepository).save(any(Credential.class));
+        verify(auditService).log(any(), eq("testuser"), any(), any());
+    }
+
+    @Test
+    void update_shouldThrow_whenCredentialDoesNotBelongToOwner() {
+        UUID credId = UUID.randomUUID();
+        UpdateCredentialRequest request = new UpdateCredentialRequest("Service", "user", "pass", null, null);
+
+        when(credentialRepository.findByIdAndVaultOwnerId(credId, ownerId)).thenReturn(Optional.empty());
+
+        assertThrows(ForbiddenException.class,
+                () -> credentialService.update(credId, request, ownerId));
+        verify(credentialRepository, never()).save(any());
+        verify(encryptionService, never()).encrypt(any());
     }
 }
