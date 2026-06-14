@@ -31,8 +31,10 @@ import com.kryptos.auth.application.AuthService;
 import com.kryptos.auth.application.dto.AuthResponse;
 import com.kryptos.auth.application.dto.LoginRequest;
 import com.kryptos.auth.application.dto.RegisterRequest;
+import com.kryptos.shared.exception.InvalidTokenException;
 import com.kryptos.shared.exception.RateLimitExceededException;
 import com.kryptos.shared.security.JwtService;
+import com.kryptos.auth.application.dto.PasswordResetConfirm;
 import com.kryptos.user.domain.Role;
 import com.kryptos.user.domain.User;
 import com.kryptos.user.domain.UserRepository;
@@ -140,5 +142,41 @@ class AuthServiceTest {
                 
         assertTrue(ex.getMessage().contains("Too many failed attempts"));
         verify(auditService, atLeast(5)).log(eq(AuditAction.LOGIN_FAILED), eq("UserTest"), eq("auth"), any());
+    }
+
+    @Test
+    void confirmPasswordReset_shouldThrow_whenPasswordInHistory() {
+        String resetToken = UUID.randomUUID().toString();
+        String oldPasswordHash = "hash_of_old_password";
+        testUser.setResetToken(resetToken);
+        testUser.setResetTokenExpiresAt(java.time.LocalDateTime.now().plusMinutes(15));
+        testUser.addToPasswordHistory(oldPasswordHash);
+
+        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "SamePassword123!");
+
+        when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("SamePassword123!", oldPasswordHash)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> authService.confirmPasswordReset(confirm));
+    }
+
+    @Test
+    void confirmPasswordReset_shouldAddOldPasswordToHistory() {
+        String resetToken = UUID.randomUUID().toString();
+        testUser.setResetToken(resetToken);
+        testUser.setResetTokenExpiresAt(java.time.LocalDateTime.now().plusMinutes(15));
+        testUser.setPassword("old_hash");
+
+        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "NewPassword123!");
+
+        when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.encode("NewPassword123!")).thenReturn("new_hash");
+
+        authService.confirmPasswordReset(confirm);
+
+        verify(userRepository).save(any(User.class));
+        verify(auditService).log(eq(AuditAction.PASSWORD_RESET_COMPLETED), eq("UserTest"), eq("auth"), any());
+        assertTrue(testUser.getPasswordHistory().contains("old_hash"));
     }
 }
