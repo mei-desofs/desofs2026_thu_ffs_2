@@ -78,11 +78,6 @@ public class UserController {
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
-        // Validar: só admins podem atualizar outros users
-        if (!id.toString().equals(authentication.getPrincipal()) && !isAdmin) {
-            throw new RuntimeException("Cannot update other users");
-        }
-
-        return ResponseEntity.ok(userService.update(id, request));
+        return ResponseEntity.ok(userService.update(id, request, currentUsername, isAdmin));
     }
 }
