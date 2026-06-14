@@ -6,11 +6,13 @@ import java.util.stream.Collectors;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.shared.exception.ForbiddenException;
 import com.kryptos.shared.exception.ResourceNotFoundException;
+import com.kryptos.user.application.dto.UpdateUserRequest;
 import com.kryptos.user.application.dto.UserResponse;
 import com.kryptos.user.domain.Role;
 import com.kryptos.user.domain.User;
@@ -74,6 +76,29 @@ public class UserService {
         user.setActive(true);
         userRepository.save(user);
         return mapToResponse(user);
+    }
+
+    @Transactional
+    public UserResponse update(UUID userId, UpdateUserRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (request.email() != null && !request.email().isBlank()) {
+            if (userRepository.existsByEmailAndIdNot(request.email(), userId)) {
+                throw new IllegalArgumentException("Email already in use");
+            }
+            user.setEmail(request.email());
+        }
+
+        if (request.username() != null && !request.username().isBlank()) {
+            user.setUsername(request.username());
+        }
+
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditService.log(AuditAction.USER_PROFILE_UPDATE, currentUsername, "user",
+                String.format("Updated profile for user %s", userId));
+
+        return mapToResponse(userRepository.save(user));
     }
 
     private UserResponse mapToResponse(User user) {
