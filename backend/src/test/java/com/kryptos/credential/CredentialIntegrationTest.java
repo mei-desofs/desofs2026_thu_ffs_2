@@ -52,7 +52,7 @@ public class CredentialIntegrationTest {
     @BeforeEach
     void setUp() {
         // Setup real EncryptionService for integration testing
-        encryptionService = new EncryptionService(TEST_ENCRYPTION_SECRET);
+        encryptionService = new EncryptionService(TEST_ENCRYPTION_SECRET, "test-salt", null);
 
         // Inject real encryption service into credential service
         ReflectionTestUtils.setField(credentialService, "encryptionService", encryptionService);
