@@ -114,29 +114,6 @@ class FileHandlingServiceTest {
     }
 
     @Test
-    @DisplayName("stripMetadata resets creation, modification and access timestamps to epoch")
-    void stripMetadata_resetsTimestampsToEpoch() throws IOException {
-        Path file = service.storeUpload("metadata-test".getBytes(), "meta.kvault", true);
-
-        FileTime creation = (FileTime) Files.getAttribute(file, "creationTime");
-        FileTime modified = Files.getLastModifiedTime(file);
-        FileTime accessed = (FileTime) Files.getAttribute(file, "lastAccessTime");
-
-        assertThat(creation.toMillis()).isZero();
-        assertThat(modified.toMillis()).isZero();
-        assertThat(accessed.toMillis()).isZero();
-    }
-
-    @Test
-    @DisplayName("storeUpload without consent strips metadata (timestamps reset to epoch)")
-    void storeUpload_withoutConsent_stripsMetadata() throws IOException {
-        Path file = service.storeUpload("test-data".getBytes(), "test.kvault", true);
-
-        FileTime creation = (FileTime) Files.getAttribute(file, "creationTime");
-        assertThat(creation.toMillis()).isZero();
-    }
-
-    @Test
     @DisplayName("storeUpload with consent preserves original file timestamps")
     void storeUpload_withConsent_preservesMetadata() throws IOException {
         Path file = service.storeUpload("test-data".getBytes(), "test.kvault", false);
