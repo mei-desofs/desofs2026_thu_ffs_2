@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.kryptos.auth.application.AuthService;
 import com.kryptos.auth.application.dto.AuthResponse;
+import com.kryptos.auth.application.dto.BackupCodeVerifyRequest;
+import com.kryptos.auth.application.dto.BackupCodesResponse;
 import com.kryptos.auth.application.dto.LoginRequest;
 import com.kryptos.auth.application.dto.LoginResponse;
 import com.kryptos.auth.application.dto.RegisterRequest;
@@ -52,10 +54,16 @@ public class AuthController {
         return ResponseEntity.ok(authService.verifyTwoFaCode(request, ip, ua));
     }
 
+    @PostMapping("/2fa/verify-backup-code")
+    public ResponseEntity<AuthResponse> verifyBackupCode(@Valid @RequestBody BackupCodeVerifyRequest request, HttpServletRequest httpRequest) {
+        String ip = RequestUtils.extractClientIp(httpRequest);
+        String ua = RequestUtils.extractUserAgent(httpRequest);
+        return ResponseEntity.ok(authService.verifyBackupCode(request, ip, ua));
+    }
+
     @PostMapping("/2fa/enable")
-    public ResponseEntity<Void> enableTwoFa(Principal principal) {
-        authService.enableTwoFa(principal.getName());
-        return ResponseEntity.ok().build();
+    public ResponseEntity<BackupCodesResponse> enableTwoFa(Principal principal) {
+        return ResponseEntity.ok(authService.enableTwoFa(principal.getName()));
     }
 
     @PostMapping("/2fa/disable")

@@ -47,6 +47,7 @@ public class AuthService {
     private final TrustedDeviceRepository trustedDeviceRepository;
     private final SuspiciousAuthNotificationService suspiciousAuthNotificationService;
     private final AuthExpiryNotificationService authExpiryNotificationService;
+    private final BackupCodeService backupCodeService;
 
     private final ConcurrentHashMap<String, Integer> loginAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> lockouts = new ConcurrentHashMap<>();
@@ -241,9 +242,29 @@ public class AuthService {
         return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
     }
 
+    @Transactional
+    public AuthResponse verifyBackupCode(com.kryptos.auth.application.dto.BackupCodeVerifyRequest request, String ipAddress, String userAgent) {
+        User user = userRepository.findByUsername(request.username())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+
+        if (!backupCodeService.validateAndUseBackupCode(user, request.backupCode())) {
+            auditService.log(AuditAction.LOGIN_FAILED, user.getUsername(), "auth",
+                    "Invalid backup code attempt");
+            throw new IllegalArgumentException("Invalid backup code");
+        }
+
+        user.setSessionTokenValidAfter(LocalDateTime.now().minusSeconds(1));
+        userRepository.save(user);
+
+        String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name(), ipAddress, userAgent);
+        auditService.log(AuditAction.LOGIN, user.getUsername(), "auth", "Backup code used for 2FA verification");
+
+        return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
+    }
+
 
     @Transactional
-    public void enableTwoFa(String username) {
+    public com.kryptos.auth.application.dto.BackupCodesResponse enableTwoFa(String username) {
         jwtService.requireRecentAuthentication();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -256,15 +277,22 @@ public class AuthService {
         userRepository.save(user);
         auditService.log(AuditAction.REGISTER, username, "auth", "2FA enabled");
 
+        java.util.List<String> backupCodes = backupCodeService.generateBackupCodes(user);
+
         suspiciousAuthNotificationService.notifySuspiciousAttempt(
             new com.kryptos.auth.application.dto.SuspiciousAuthAttempt(
                 user.getUsername(),
                 user.getEmail(),
-                "Two-factor authentication has been enabled on your account",
+                "Two-factor authentication has been enabled on your account. Save your backup codes in a safe place.",
                 "unknown",
                 "unknown",
                 LocalDateTime.now()
             )
+        );
+
+        return new com.kryptos.auth.application.dto.BackupCodesResponse(
+            backupCodes,
+            "2FA enabled. Save these backup codes in a safe place. You can use them to access your account if you lose your 2FA device."
         );
     }
 
