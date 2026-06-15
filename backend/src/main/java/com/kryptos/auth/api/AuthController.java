@@ -16,6 +16,8 @@ import com.kryptos.auth.application.dto.BackupCodesResponse;
 import com.kryptos.auth.application.dto.LoginRequest;
 import com.kryptos.auth.application.dto.LoginResponse;
 import com.kryptos.auth.application.dto.RegisterRequest;
+import com.kryptos.auth.application.dto.TotpSetupResponse;
+import com.kryptos.auth.application.dto.TotpVerifyRequest;
 import com.kryptos.auth.application.dto.TwoFaVerifyRequest;
 import com.kryptos.shared.util.RequestUtils;
 
@@ -70,6 +72,32 @@ public class AuthController {
     public ResponseEntity<Void> disableTwoFa(Principal principal) {
         authService.disableTwoFa(principal.getName());
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/totp/setup")
+    public ResponseEntity<TotpSetupResponse> setupTotp(Principal principal) {
+        return ResponseEntity.ok(authService.setupTotp(principal.getName()));
+    }
+
+    @PostMapping("/totp/confirm")
+    public ResponseEntity<Void> confirmTotpSetup(Principal principal,
+            @RequestHeader("X-TOTP-Secret") String secret,
+            @RequestHeader("X-TOTP-Code") String code) {
+        authService.confirmTotpSetup(principal.getName(), secret, code);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/totp/disable")
+    public ResponseEntity<Void> disableTotp(Principal principal) {
+        authService.disableTotp(principal.getName());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/totp/verify")
+    public ResponseEntity<AuthResponse> verifyTotp(@Valid @RequestBody TotpVerifyRequest request, HttpServletRequest httpRequest) {
+        String ip = RequestUtils.extractClientIp(httpRequest);
+        String ua = RequestUtils.extractUserAgent(httpRequest);
+        return ResponseEntity.ok(authService.verifyTotp(request, ip, ua));
     }
 
     @PostMapping("/logout")

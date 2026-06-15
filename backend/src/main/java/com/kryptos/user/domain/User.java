@@ -56,6 +56,13 @@ public class User implements Serializable {
     @Column(name = "two_fa_code_expires_at")
     private LocalDateTime twoFaCodeExpiresAt;
 
+    @Builder.Default
+    @Column(name = "totp_enabled")
+    private boolean totpEnabled = false;
+
+    @Column(name = "totp_secret")
+    private String totpSecret;
+
     @Column(name = "account_locked_until_admin")
     private boolean accountLockedUntilAdmin;
 
