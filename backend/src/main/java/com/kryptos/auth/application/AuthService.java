@@ -45,6 +45,7 @@ public class AuthService {
     private final AuditService auditService;
     private final EmailService emailService;
     private final TrustedDeviceRepository trustedDeviceRepository;
+    private final SuspiciousAuthNotificationService suspiciousAuthNotificationService;
 
     private final ConcurrentHashMap<String, Integer> loginAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> lockouts = new ConcurrentHashMap<>();
@@ -154,10 +155,39 @@ public class AuthService {
             auditService.log(AuditAction.LOGIN_FAILED, cacheKey, "auth",
                     "Failed login attempt " + attempts + "/" + MAX_ATTEMPTS);
 
+            if (attempts >= 3 && attempts < MAX_ATTEMPTS) {
+                User user = userRepository.findByUsername(cacheKey).orElse(null);
+                if (user != null) {
+                    suspiciousAuthNotificationService.notifySuspiciousAttempt(
+                        new com.kryptos.auth.application.dto.SuspiciousAuthAttempt(
+                            user.getUsername(),
+                            user.getEmail(),
+                            "Multiple failed login attempts (" + attempts + "/" + MAX_ATTEMPTS + ")",
+                            ipAddress,
+                            userAgent,
+                            LocalDateTime.now()
+                        )
+                    );
+                }
+            }
+
             if (attempts >= MAX_ATTEMPTS) {
                 lockouts.put(cacheKey, Instant.now().plusSeconds(900));
                 auditService.log(AuditAction.LOGIN_FAILED, cacheKey, "auth",
                         "Account locked after " + MAX_ATTEMPTS + " failed login attempts");
+                User user = userRepository.findByUsername(cacheKey).orElse(null);
+                if (user != null) {
+                    suspiciousAuthNotificationService.notifySuspiciousAttempt(
+                        new com.kryptos.auth.application.dto.SuspiciousAuthAttempt(
+                            user.getUsername(),
+                            user.getEmail(),
+                            "Account locked due to " + MAX_ATTEMPTS + " failed login attempts",
+                            ipAddress,
+                            userAgent,
+                            LocalDateTime.now()
+                        )
+                    );
+                }
             }
             throw new IllegalArgumentException("Invalid credentials");
         }
@@ -297,6 +327,17 @@ public class AuthService {
 
         auditService.log(AuditAction.PASSWORD_RESET_REQUESTED, email, "auth",
                 "Password reset requested for user");
+
+        suspiciousAuthNotificationService.notifySuspiciousAttempt(
+            new com.kryptos.auth.application.dto.SuspiciousAuthAttempt(
+                user.getUsername(),
+                user.getEmail(),
+                "Password reset request initiated for your account",
+                "unknown",
+                "unknown",
+                LocalDateTime.now()
+            )
+        );
 
         // TODO: emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
     }
