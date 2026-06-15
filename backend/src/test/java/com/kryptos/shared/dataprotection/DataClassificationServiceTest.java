@@ -1,0 +1,186 @@
+package com.kryptos.shared.dataprotection;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class DataClassificationServiceTest {
+
+    private DataClassificationService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new DataClassificationService();
+    }
+
+    @Test
+    void classify_shouldReturnConfidential_forEncryptedPassword() {
+        assertEquals(DataClassification.CONFIDENTIAL, service.classify("credential.encryptedPassword"));
+    }
+
+    @Test
+    void classify_shouldReturnRestricted_forEncryptionSecret() {
+        assertEquals(DataClassification.RESTRICTED, service.classify("encryption.secret"));
+    }
+
+    @Test
+    void classify_shouldReturnInternal_forUsername() {
+        assertEquals(DataClassification.INTERNAL, service.classify("user.username"));
+    }
+
+    @Test
+    void classify_shouldReturnPublic_forServiceName() {
+        assertEquals(DataClassification.PUBLIC, service.classify("credential.serviceName"));
+    }
+
+    @Test
+    void classify_shouldThrow_forUnknownFieldPath() {
+        assertThrows(IllegalArgumentException.class, () -> service.classify("unknown.field"));
+    }
+
+    @Test
+    void getElement_shouldReturnCorrectElement() {
+        SensitiveDataElement element = service.getElement("user.email");
+        assertEquals(SensitiveDataElement.USER_EMAIL, element);
+    }
+
+    @Test
+    void getElement_shouldThrow_forUnknownPath() {
+        assertThrows(IllegalArgumentException.class, () -> service.getElement("does.not.exist"));
+    }
+
+    @Test
+    void getProtectionRequirements_shouldReturnRequirements_forConfidential() {
+        List<DataClassificationService.ProtectionRequirement> reqs =
+                service.getProtectionRequirements(DataClassification.CONFIDENTIAL);
+        assertNotNull(reqs);
+        assertFalse(reqs.isEmpty());
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Encryption at Rest")));
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Encoding Awareness")));
+    }
+
+    @Test
+    void getProtectionRequirements_shouldReturnRequirements_forRestricted() {
+        List<DataClassificationService.ProtectionRequirement> reqs =
+                service.getProtectionRequirements(DataClassification.RESTRICTED);
+        assertNotNull(reqs);
+        assertFalse(reqs.isEmpty());
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Regulatory Compliance")));
+    }
+
+    @Test
+    void getProtectionRequirements_shouldReturnEmpty_forPublic() {
+        List<DataClassificationService.ProtectionRequirement> reqs =
+                service.getProtectionRequirements(DataClassification.PUBLIC);
+        assertNotNull(reqs);
+        assertFalse(reqs.isEmpty());
+    }
+
+    @Test
+    void getApplicableRegulations_shouldReturnGDPR_forRestricted() {
+        List<String> regs = service.getApplicableRegulations(DataClassification.RESTRICTED);
+        assertTrue(regs.stream().anyMatch(r -> r.contains("GDPR")));
+    }
+
+    @Test
+    void getApplicableRegulations_shouldReturnEmpty_forPublic() {
+        List<String> regs = service.getApplicableRegulations(DataClassification.PUBLIC);
+        assertTrue(regs.isEmpty());
+    }
+
+    @Test
+    void getElementsByClassification_shouldReturnAllRestricted() {
+        List<SensitiveDataElement> restricted = service.getElementsByClassification(DataClassification.RESTRICTED);
+        assertFalse(restricted.isEmpty());
+        assertTrue(restricted.contains(SensitiveDataElement.ENCRYPTION_SECRET));
+        assertTrue(restricted.contains(SensitiveDataElement.USER_PASSWORD_HASH));
+        assertTrue(restricted.contains(SensitiveDataElement.JWT_SIGNING_SECRET));
+    }
+
+    @Test
+    void getElementsByClassification_shouldReturnAllPublic() {
+        List<SensitiveDataElement> publicElements = service.getElementsByClassification(DataClassification.PUBLIC);
+        assertFalse(publicElements.isEmpty());
+        assertTrue(publicElements.contains(SensitiveDataElement.CREDENTIAL_SERVICE_NAME));
+        assertTrue(publicElements.contains(SensitiveDataElement.VAULT_NAME));
+    }
+
+    @Test
+    void isProperlyProtected_shouldReturnTrue_whenAllRequirementsMet() {
+        assertTrue(service.isProperlyProtected(
+                SensitiveDataElement.CREDENTIAL_ENCRYPTED_PASSWORD, true, true, true));
+    }
+
+    @Test
+    void isProperlyProtected_shouldReturnFalse_whenEncryptionAtRestMissing() {
+        assertFalse(service.isProperlyProtected(
+                SensitiveDataElement.CREDENTIAL_ENCRYPTED_PASSWORD, false, true, true));
+    }
+
+    @Test
+    void isProperlyProtected_shouldReturnFalse_whenAccessControlMissing() {
+        assertFalse(service.isProperlyProtected(
+                SensitiveDataElement.ENCRYPTION_SECRET, true, true, false));
+    }
+
+    @Test
+    void isProperlyProtected_shouldReturnTrue_forPublicEvenWithoutProtection() {
+        assertTrue(service.isProperlyProtected(
+                SensitiveDataElement.CREDENTIAL_SERVICE_NAME, false, false, false));
+    }
+
+    @Test
+    void isEncodedOnly_shouldReturnTrue_forConfidential() {
+        assertTrue(service.isEncodedOnly(DataClassification.CONFIDENTIAL));
+    }
+
+    @Test
+    void isEncodedOnly_shouldReturnFalse_forOtherLevels() {
+        assertFalse(service.isEncodedOnly(DataClassification.PUBLIC));
+        assertFalse(service.isEncodedOnly(DataClassification.INTERNAL));
+        assertFalse(service.isEncodedOnly(DataClassification.RESTRICTED));
+    }
+
+    @Test
+    void getClassificationForElement_shouldReturnCorrect_whenFound() {
+        Optional<DataClassification> result = service.getClassificationForElement("jwt.token");
+        assertTrue(result.isPresent());
+        assertEquals(DataClassification.CONFIDENTIAL, result.get());
+    }
+
+    @Test
+    void getClassificationForElement_shouldReturnEmpty_whenNotFound() {
+        assertTrue(service.getClassificationForElement("nonexistent.path").isEmpty());
+    }
+
+    @Test
+    void getAllFieldPaths_shouldContainAllRegisteredElements() {
+        var paths = service.getAllFieldPaths();
+        assertTrue(paths.contains("user.username"));
+        assertTrue(paths.contains("credential.encryptedPassword"));
+        assertTrue(paths.contains("encryption.secret"));
+        assertTrue(paths.contains("jwt.token"));
+        assertTrue(paths.contains("config.databasePassword"));
+    }
+
+    @Test
+    void countElementsAtLevel_shouldReturnCorrectCounts() {
+        long total = SensitiveDataElement.values().length;
+        long publicCount = service.countElementsAtLevel(DataClassification.PUBLIC);
+        long internalCount = service.countElementsAtLevel(DataClassification.INTERNAL);
+        long confidentialCount = service.countElementsAtLevel(DataClassification.CONFIDENTIAL);
+        long restrictedCount = service.countElementsAtLevel(DataClassification.RESTRICTED);
+        assertEquals(total, publicCount + internalCount + confidentialCount + restrictedCount);
+    }
+
+    @Test
+    void protectionRequirementRecord_shouldWork() {
+        var req = new DataClassificationService.ProtectionRequirement("Test", "Description");
+        assertEquals("Test", req.category());
+        assertEquals("Description", req.requirement());
+    }
+}
