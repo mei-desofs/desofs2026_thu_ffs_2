@@ -545,6 +545,9 @@ public class AuthService {
     }
 
     private void incrementResetFailure(String username) {
+        if (username == null || username.isBlank()) {
+            return;
+        }
         int failures = resetFailures.getOrDefault(username, 0) + 1;
         resetFailures.put(username, failures);
 

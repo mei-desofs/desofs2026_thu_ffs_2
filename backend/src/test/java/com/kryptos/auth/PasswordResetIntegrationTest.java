@@ -22,14 +22,22 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
+import com.kryptos.auth.application.AuthExpiryNotificationService;
 import com.kryptos.auth.application.AuthService;
+import com.kryptos.auth.application.BackupCodeService;
+import com.kryptos.auth.application.SuspiciousAuthNotificationService;
+import com.kryptos.auth.application.TotpService;
 import com.kryptos.auth.application.dto.PasswordResetConfirm;
 import com.kryptos.auth.application.dto.PasswordResetRequest;
+import com.kryptos.shared.email.EmailService;
 import com.kryptos.shared.exception.InvalidTokenException;
 import com.kryptos.shared.exception.ResourceNotFoundException;
+import com.kryptos.shared.security.JwtService;
+import com.kryptos.trusteddevice.domain.TrustedDeviceRepository;
 import com.kryptos.user.domain.Role;
 import com.kryptos.user.domain.User;
 import com.kryptos.user.domain.UserRepository;
+import org.springframework.security.authentication.AuthenticationManager;
 
 @ExtendWith(MockitoExtension.class)
 class PasswordResetIntegrationTest {
@@ -41,7 +49,31 @@ class PasswordResetIntegrationTest {
     private PasswordEncoder passwordEncoder;
 
     @Mock
+    private JwtService jwtService;
+
+    @Mock
+    private AuthenticationManager authenticationManager;
+
+    @Mock
     private AuditService auditService;
+
+    @Mock
+    private EmailService emailService;
+
+    @Mock
+    private TrustedDeviceRepository trustedDeviceRepository;
+
+    @Mock
+    private SuspiciousAuthNotificationService suspiciousAuthNotificationService;
+
+    @Mock
+    private AuthExpiryNotificationService authExpiryNotificationService;
+
+    @Mock
+    private BackupCodeService backupCodeService;
+
+    @Mock
+    private TotpService totpService;
 
     @InjectMocks
     private AuthService authService;
@@ -103,9 +135,9 @@ class PasswordResetIntegrationTest {
         testUser.setResetTokenExpiresAt(LocalDateTime.now().plusMinutes(15));
 
         when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.encode("NewPassword123!")).thenReturn("hashedNewPassword");
+        when(passwordEncoder.encode("SecureVault9$x")).thenReturn("hashedNewPassword");
 
-        authService.confirmPasswordReset(new PasswordResetConfirm(resetToken, "NewPassword123!"));
+        authService.confirmPasswordReset(new PasswordResetConfirm(resetToken, "SecureVault9$x"));
 
         assertEquals("hashedNewPassword", testUser.getPassword());
         assertNull(testUser.getResetToken());
@@ -123,7 +155,7 @@ class PasswordResetIntegrationTest {
         when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.of(testUser));
 
         assertThrows(InvalidTokenException.class,
-                () -> authService.confirmPasswordReset(new PasswordResetConfirm(resetToken, "NewPassword123!")));
+                () -> authService.confirmPasswordReset(new PasswordResetConfirm(resetToken, "SecureVault9$x")));
     }
 
     @Test
@@ -131,7 +163,7 @@ class PasswordResetIntegrationTest {
         when(userRepository.findByResetToken("invalid-token")).thenReturn(Optional.empty());
 
         assertThrows(InvalidTokenException.class,
-                () -> authService.confirmPasswordReset(new PasswordResetConfirm("invalid-token", "NewPassword123!")));
+                () -> authService.confirmPasswordReset(new PasswordResetConfirm("invalid-token", "SecureVault9$x")));
     }
 
     @Test
@@ -142,6 +174,6 @@ class PasswordResetIntegrationTest {
         when(userRepository.findByResetToken(null)).thenReturn(Optional.empty());
 
         assertThrows(InvalidTokenException.class,
-                () -> authService.confirmPasswordReset(new PasswordResetConfirm(null, "NewPassword123!")));
+                () -> authService.confirmPasswordReset(new PasswordResetConfirm(null, "SecureVault9$x")));
     }
 }
