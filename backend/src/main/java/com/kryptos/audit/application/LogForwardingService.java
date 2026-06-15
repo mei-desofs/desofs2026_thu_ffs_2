@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kryptos.audit.domain.AuditLog;
+import com.kryptos.shared.security.OutboundConnectionValidator;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,12 +22,15 @@ public class LogForwardingService {
     private final String logForwardingUrl;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final OutboundConnectionValidator outboundValidator;
 
     public LogForwardingService(
             @Value("${kryptos.logging.forwarding.url:}") String logForwardingUrl,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            OutboundConnectionValidator outboundValidator) {
         this.logForwardingUrl = logForwardingUrl;
         this.objectMapper = objectMapper;
+        this.outboundValidator = outboundValidator;
         this.httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
     }
 
@@ -34,6 +38,13 @@ public class LogForwardingService {
     public void forwardLog(AuditLog auditLog) {
         if (logForwardingUrl == null || logForwardingUrl.isBlank()) {
             log.debug("Log forwarding not configured, skipping");
+            return;
+        }
+
+        try {
+            outboundValidator.validateOutboundUrl(logForwardingUrl);
+        } catch (SecurityException e) {
+            log.error("Log forwarding blocked: {}", e.getMessage());
             return;
         }
 

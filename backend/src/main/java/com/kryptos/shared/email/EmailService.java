@@ -5,18 +5,44 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-import lombok.RequiredArgsConstructor;
+import com.kryptos.shared.security.OutboundConnectionValidator;
+
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
+    private final OutboundConnectionValidator outboundValidator;
+    private final String mailHost;
+
+    private String fromEmail;
+
+    public EmailService(JavaMailSender mailSender,
+                        OutboundConnectionValidator outboundValidator,
+                        @Value("${spring.mail.host:sandbox.smtp.mailtrap.io}") String mailHost) {
+        this.mailSender = mailSender;
+        this.outboundValidator = outboundValidator;
+        this.mailHost = mailHost;
+    }
 
     @Value("${spring.mail.username}")
-    private String fromEmail;
+    public void setFromEmail(String fromEmail) {
+        this.fromEmail = fromEmail;
+    }
+
+    @PostConstruct
+    public void validateMailHost() {
+        try {
+            outboundValidator.validateOutboundHost(mailHost);
+            log.info("SMTP host '{}' is allowlisted", mailHost);
+        } catch (SecurityException e) {
+            log.error("SMTP host validation failed at startup: {}", e.getMessage());
+            throw new IllegalStateException("SMTP host is not in the outbound allowlist: " + mailHost, e);
+        }
+    }
 
     public void sendTwoFaCode(String toEmail, String code) {
         try {

@@ -44,19 +44,34 @@ public class OutboundConnectionValidator {
                 throw new SecurityException("Outbound URL has no host: " + url);
             }
 
-            // Block private/internal IP ranges (SSRF protection)
-            validateNotPrivateAddress(host);
-
-            // Check against allowlist
-            Set<String> allowed = Set.of(allowedExternalHosts.split(","));
-            if (!allowed.contains(host.toLowerCase())) {
-                log.warn("Blocked outbound connection to non-allowlisted host: {}", host);
-                throw new SecurityException(
-                        "Outbound connection to host '" + host + "' is not in the allowlist");
-            }
+            validateOutboundHost(host);
 
         } catch (IllegalArgumentException e) {
             throw new SecurityException("Invalid outbound URL: " + url, e);
+        }
+    }
+
+    /**
+     * Validates that a hostname targets an allowed external destination and is not
+     * a private/internal address. Intended for non-HTTP outbound protocols such as SMTP.
+     *
+     * @param host the hostname to validate
+     * @throws SecurityException if the host is not allowed
+     */
+    public void validateOutboundHost(String host) {
+        if (host == null || host.isBlank()) {
+            throw new SecurityException("Outbound host must not be null or blank");
+        }
+
+        // Block private/internal IP ranges (SSRF protection)
+        validateNotPrivateAddress(host);
+
+        // Check against allowlist
+        Set<String> allowed = Set.of(allowedExternalHosts.split(","));
+        if (!allowed.contains(host.toLowerCase())) {
+            log.warn("Blocked outbound connection to non-allowlisted host: {}", host);
+            throw new SecurityException(
+                    "Outbound connection to host '" + host + "' is not in the allowlist");
         }
     }
 
