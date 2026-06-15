@@ -4,15 +4,18 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kryptos.audit.domain.AuditLog;
+import com.kryptos.shared.security.OutboundConnectionValidator;
 
 @ExtendWith(MockitoExtension.class)
 class LogForwardingServiceTest {
@@ -20,8 +23,8 @@ class LogForwardingServiceTest {
     @Mock
     private ObjectMapper objectMapper;
 
-    @InjectMocks
-    private LogForwardingService logForwardingService;
+    @Mock
+    private OutboundConnectionValidator outboundValidator;
 
     private AuditLog testAuditLog;
 
@@ -41,17 +44,18 @@ class LogForwardingServiceTest {
 
     @Test
     void forwardLog_shouldNotThrowException_whenUrlNotConfigured() {
-        // LogForwardingService initialized with empty URL
-        LogForwardingService service = new LogForwardingService("", new ObjectMapper());
+        LogForwardingService service = new LogForwardingService("", new ObjectMapper(), outboundValidator);
 
         assertDoesNotThrow(() -> service.forwardLog(testAuditLog));
+        verify(outboundValidator, never()).validateOutboundUrl(anyString());
     }
 
     @Test
     void forwardLog_shouldNotThrowException_whenUrlIsNull() {
-        LogForwardingService service = new LogForwardingService(null, new ObjectMapper());
+        LogForwardingService service = new LogForwardingService(null, new ObjectMapper(), outboundValidator);
 
         assertDoesNotThrow(() -> service.forwardLog(testAuditLog));
+        verify(outboundValidator, never()).validateOutboundUrl(anyString());
     }
 
     @Test
@@ -64,13 +68,12 @@ class LogForwardingServiceTest {
 
     @Test
     void forwardLog_shouldBeAsyncAndNonBlocking() {
-        LogForwardingService service = new LogForwardingService("", new ObjectMapper());
+        LogForwardingService service = new LogForwardingService("", new ObjectMapper(), outboundValidator);
 
         long startTime = System.currentTimeMillis();
         service.forwardLog(testAuditLog);
         long endTime = System.currentTimeMillis();
 
-        // Should complete almost instantly since URL is not configured
         assertTrue((endTime - startTime) < 100, "Forwarding should be non-blocking");
     }
 
@@ -96,7 +99,7 @@ class LogForwardingServiceTest {
 
     @Test
     void forwardLog_shouldHandleMultipleLogs() {
-        LogForwardingService service = new LogForwardingService("", new ObjectMapper());
+        LogForwardingService service = new LogForwardingService("", new ObjectMapper(), outboundValidator);
 
         AuditLog log1 = AuditLog.builder().action("LOGIN").performedBy("user1").build();
         AuditLog log2 = AuditLog.builder().action("LOGOUT").performedBy("user1").build();
@@ -107,5 +110,24 @@ class LogForwardingServiceTest {
             service.forwardLog(log2);
             service.forwardLog(log3);
         });
+    }
+
+    @Test
+    void forwardLog_shouldCallValidator_whenUrlConfigured() {
+        LogForwardingService service = new LogForwardingService("https://logs.example.com/api/logs",
+                new ObjectMapper(), outboundValidator);
+
+        service.forwardLog(testAuditLog);
+
+        verify(outboundValidator).validateOutboundUrl("https://logs.example.com/api/logs");
+    }
+
+    @Test
+    void forwardLog_shouldBlock_whenValidatorRejectsUrl() {
+        doThrow(new SecurityException("Blocked")).when(outboundValidator).validateOutboundUrl(anyString());
+        LogForwardingService service = new LogForwardingService("https://evil.com/exfiltrate",
+                new ObjectMapper(), outboundValidator);
+
+        assertDoesNotThrow(() -> service.forwardLog(testAuditLog));
     }
 }
