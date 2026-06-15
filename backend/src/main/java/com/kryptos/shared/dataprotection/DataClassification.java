@@ -11,7 +11,11 @@ public enum DataClassification {
             false,
             false,
             false,
-            "No retention limit; can be disposed of as needed."
+            "No retention limit; can be disposed of as needed.",
+            false,
+            false,
+            false,
+            "No logging restrictions; data can be logged freely."
     ),
     INTERNAL(
             "Internal",
@@ -19,7 +23,11 @@ public enum DataClassification {
             false,
             true,
             true,
-            "Retain for the lifetime of the user account; delete upon account closure."
+            "Retain for the lifetime of the user account; delete upon account closure.",
+            true,
+            false,
+            true,
+            "May be logged with basic access controls; minimize unnecessary logging."
     ),
     CONFIDENTIAL(
             "Confidential",
@@ -27,7 +35,11 @@ public enum DataClassification {
             true,
             true,
             true,
-            "Retain only as long as necessary for operational purposes; purge securely upon expiry or revocation."
+            "Retain only as long as necessary for operational purposes; purge securely upon expiry or revocation.",
+            true,
+            true,
+            true,
+            "Must be masked or redacted in logs; never log plaintext values; log access events must be audited."
     ),
     RESTRICTED(
             "Restricted",
@@ -35,7 +47,11 @@ public enum DataClassification {
             true,
             true,
             true,
-            "Minimize retention; rotate regularly; destroy securely with cryptographic erasure when no longer needed."
+            "Minimize retention; rotate regularly; destroy securely with cryptographic erasure when no longer needed.",
+            true,
+            true,
+            true,
+            "Must never appear in logs, error messages, exceptions, or stack traces. Use hashed references only if absolutely necessary for forensics."
     );
 
     private final String displayName;
@@ -44,16 +60,26 @@ public enum DataClassification {
     private final boolean requiresEncryptionInTransit;
     private final boolean requiresStrictAccessControl;
     private final String retentionGuidance;
+    private final boolean requiresLoggingProtection;
+    private final boolean requiresDatabaseEncryption;
+    private final boolean requiresPrivacyEnhancement;
+    private final String loggingGuidance;
 
     DataClassification(String displayName, String description,
                        boolean requiresEncryptionAtRest, boolean requiresEncryptionInTransit,
-                       boolean requiresStrictAccessControl, String retentionGuidance) {
+                       boolean requiresStrictAccessControl, String retentionGuidance,
+                       boolean requiresLoggingProtection, boolean requiresDatabaseEncryption,
+                       boolean requiresPrivacyEnhancement, String loggingGuidance) {
         this.displayName = displayName;
         this.description = description;
         this.requiresEncryptionAtRest = requiresEncryptionAtRest;
         this.requiresEncryptionInTransit = requiresEncryptionInTransit;
         this.requiresStrictAccessControl = requiresStrictAccessControl;
         this.retentionGuidance = retentionGuidance;
+        this.requiresLoggingProtection = requiresLoggingProtection;
+        this.requiresDatabaseEncryption = requiresDatabaseEncryption;
+        this.requiresPrivacyEnhancement = requiresPrivacyEnhancement;
+        this.loggingGuidance = loggingGuidance;
     }
 
     public boolean isAtLeast(DataClassification other) {
