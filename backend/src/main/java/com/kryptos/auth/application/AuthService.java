@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.auth.application.dto.AuthResponse;
+import com.kryptos.shared.validation.PasswordValidator;
 import com.kryptos.auth.application.dto.LoginRequest;
 import com.kryptos.auth.application.dto.LoginResponse;
 import com.kryptos.auth.application.dto.PasswordResetConfirm;
@@ -61,6 +62,8 @@ public class AuthService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     public AuthResponse register(RegisterRequest request, String ipAddress, String userAgent) {
+        PasswordValidator.validatePassword(request.password());
+
         boolean emailExists = userRepository.findByEmail(request.email()).isPresent();
         boolean usernameExists = userRepository.findByUsername(request.username()).isPresent();
 
@@ -311,6 +314,8 @@ public class AuthService {
             incrementResetFailure(user.getUsername());
             throw new InvalidTokenException("Reset token has expired");
         }
+
+        PasswordValidator.validatePassword(confirm.newPassword());
 
         if (isPasswordInHistory(user, confirm.newPassword())) {
             throw new IllegalArgumentException("Cannot reuse one of your last 3 passwords");
