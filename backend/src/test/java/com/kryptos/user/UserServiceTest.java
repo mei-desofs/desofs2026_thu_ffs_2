@@ -26,6 +26,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
+import com.kryptos.auth.application.SuspiciousAuthNotificationService;
 import com.kryptos.shared.exception.ForbiddenException;
 import com.kryptos.shared.exception.ReauthenticationRequiredException;
 import com.kryptos.shared.exception.ResourceNotFoundException;
@@ -41,8 +42,9 @@ import com.kryptos.user.domain.UserRepository;
 class UserServiceTest {
 
     @Mock private UserRepository userRepository;
-    @Mock private AuditService auditService; // 1. Adicionado o mock do AuditService
+    @Mock private AuditService auditService;
     @Mock private JwtService jwtService;
+    @Mock private SuspiciousAuthNotificationService suspiciousAuthNotificationService;
 
     @InjectMocks
     private UserService userService;

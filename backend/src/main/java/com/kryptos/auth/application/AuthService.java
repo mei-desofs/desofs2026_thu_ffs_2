@@ -251,6 +251,17 @@ public class AuthService {
         user.setTwoFaEnabled(true);
         userRepository.save(user);
         auditService.log(AuditAction.REGISTER, username, "auth", "2FA enabled");
+
+        suspiciousAuthNotificationService.notifySuspiciousAttempt(
+            new com.kryptos.auth.application.dto.SuspiciousAuthAttempt(
+                user.getUsername(),
+                user.getEmail(),
+                "Two-factor authentication has been enabled on your account",
+                "unknown",
+                "unknown",
+                LocalDateTime.now()
+            )
+        );
     }
 
     @Transactional
@@ -268,6 +279,17 @@ public class AuthService {
         user.setTwoFaCodeExpiresAt(null);
         userRepository.save(user);
         auditService.log(AuditAction.REGISTER, username, "auth", "2FA disabled");
+
+        suspiciousAuthNotificationService.notifySuspiciousAttempt(
+            new com.kryptos.auth.application.dto.SuspiciousAuthAttempt(
+                user.getUsername(),
+                user.getEmail(),
+                "Two-factor authentication has been disabled on your account",
+                "unknown",
+                "unknown",
+                LocalDateTime.now()
+            )
+        );
     }
 
     private void sendTwoFaCode(User user) {
@@ -373,6 +395,17 @@ public class AuthService {
 
         auditService.log(AuditAction.PASSWORD_RESET_COMPLETED, user.getUsername(), "auth",
                 "Password reset completed successfully");
+
+        suspiciousAuthNotificationService.notifySuspiciousAttempt(
+            new com.kryptos.auth.application.dto.SuspiciousAuthAttempt(
+                user.getUsername(),
+                user.getEmail(),
+                "Your password has been changed. If you did not make this change, please contact support immediately.",
+                "unknown",
+                "unknown",
+                LocalDateTime.now()
+            )
+        );
     }
 
     public void logout(String token, String username) {
