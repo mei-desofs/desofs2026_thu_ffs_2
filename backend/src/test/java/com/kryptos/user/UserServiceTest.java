@@ -40,6 +40,7 @@ class UserServiceTest {
 
     @Mock private UserRepository userRepository;
     @Mock private AuditService auditService; // 1. Adicionado o mock do AuditService
+    @Mock private com.kryptos.shared.security.JwtService jwtService;
 
     @InjectMocks
     private UserService userService;

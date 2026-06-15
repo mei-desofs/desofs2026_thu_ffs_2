@@ -53,6 +53,21 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
+    public Date extractIssuedAt(String token) {
+        return extractClaim(token, Claims::getIssuedAt);
+    }
+
+    public void requireRecentAuthentication() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getCredentials() instanceof String token)) {
+            throw new com.kryptos.shared.exception.ReauthenticationRequiredException("Re-authentication missing.");
+        }
+        Date issuedAt = extractIssuedAt(token);
+        if (issuedAt == null || issuedAt.toInstant().isBefore(Instant.now().minusSeconds(300))) {
+            throw new com.kryptos.shared.exception.ReauthenticationRequiredException("Re-authentication required for sensitive operations.");
+        }
+    }
+
     public boolean isTokenValid(String token, KryptosUserDetails userDetails) {
         try {
             String tokenUsername = extractUsername(token);

@@ -183,8 +183,10 @@ public class AuthService {
         return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
     }
 
+
     @Transactional
     public void enableTwoFa(String username) {
+        jwtService.requireRecentAuthentication();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -199,6 +201,7 @@ public class AuthService {
 
     @Transactional
     public void disableTwoFa(String username) {
+        jwtService.requireRecentAuthentication();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 

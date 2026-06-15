@@ -26,6 +26,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final com.kryptos.shared.security.JwtService jwtService;
 
     public List<UserResponse> findAll() {
         return userRepository.findAll().stream()
@@ -80,6 +81,7 @@ public class UserService {
 
     @Transactional
     public UserResponse update(UUID userId, UpdateUserRequest request, String currentUsername, boolean isAdmin) {
+        jwtService.requireRecentAuthentication();
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
