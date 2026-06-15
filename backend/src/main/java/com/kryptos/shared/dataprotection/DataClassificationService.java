@@ -83,6 +83,27 @@ public class DataClassificationService {
         return PROTECTION_REQUIREMENTS.getOrDefault(classification, List.of());
     }
 
+    public DataClassification getLoggingProtection(DataClassification classification) {
+        return classification;
+    }
+
+    public String sanitizeForLogging(String value, SensitiveDataElement element) {
+        if (value == null) return null;
+        DataClassification cls = element.getClassification();
+        if (cls == DataClassification.PUBLIC || cls == DataClassification.INTERNAL) {
+            return value;
+        }
+        if (cls == DataClassification.RESTRICTED) {
+            return "[REDACTED]";
+        }
+        return maskValue(value);
+    }
+
+    private static String maskValue(String value) {
+        if (value.length() <= 4) return "****";
+        return value.substring(0, 2) + "****" + value.substring(value.length() - 2);
+    }
+
     public List<String> getApplicableRegulations(DataClassification classification) {
         return COMPLIANCE_MAPPINGS.getOrDefault(classification, List.of());
     }

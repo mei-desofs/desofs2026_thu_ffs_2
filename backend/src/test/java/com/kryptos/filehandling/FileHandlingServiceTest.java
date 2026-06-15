@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.List;
 import java.util.Set;
@@ -110,5 +111,14 @@ class FileHandlingServiceTest {
         IOException ex = assertThrows(IOException.class,
                 () -> service.storeUpload(content, "large.kvault"));
         assertThat(ex.getMessage()).containsIgnoringCase("large");
+    }
+
+    @Test
+    @DisplayName("storeUpload with consent preserves original file timestamps")
+    void storeUpload_withConsent_preservesMetadata() throws IOException {
+        Path file = service.storeUpload("test-data".getBytes(), "test.kvault", false);
+
+        FileTime creation = (FileTime) Files.getAttribute(file, "creationTime");
+        assertThat(creation.toMillis()).isNotZero();
     }
 }

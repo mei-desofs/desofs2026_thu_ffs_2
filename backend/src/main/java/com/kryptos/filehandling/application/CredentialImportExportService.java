@@ -73,13 +73,19 @@ public class CredentialImportExportService {
     @Transactional
     public int importForOwner(byte[] uploadedBytes, String originalFilename, UUID ownerId)
             throws IOException {
+        return importForOwner(uploadedBytes, originalFilename, ownerId, false);
+    }
+
+    @Transactional
+    public int importForOwner(byte[] uploadedBytes, String originalFilename, UUID ownerId, boolean consentToStorage)
+            throws IOException {
         if (uploadedBytes == null || uploadedBytes.length == 0) {
             throw new IllegalArgumentException("Import file is empty");
         }
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Path stored = fileHandlingService.storeUpload(uploadedBytes, originalFilename);
+        Path stored = fileHandlingService.storeUpload(uploadedBytes, originalFilename, !consentToStorage);
         try {
             List<String> records = fileHandlingService.importCredentials(stored);
 
