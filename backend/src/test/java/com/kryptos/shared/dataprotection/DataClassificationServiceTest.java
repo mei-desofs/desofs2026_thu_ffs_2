@@ -61,6 +61,9 @@ class DataClassificationServiceTest {
         assertFalse(reqs.isEmpty());
         assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Encryption at Rest")));
         assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Encoding Awareness")));
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Logging")));
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Database Encryption")));
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Privacy")));
     }
 
     @Test
@@ -70,14 +73,28 @@ class DataClassificationServiceTest {
         assertNotNull(reqs);
         assertFalse(reqs.isEmpty());
         assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Regulatory Compliance")));
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Logging")));
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Database Encryption")));
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Privacy")));
     }
 
     @Test
-    void getProtectionRequirements_shouldReturnEmpty_forPublic() {
+    void getProtectionRequirements_shouldReturnRequirements_forPublic() {
         List<DataClassificationService.ProtectionRequirement> reqs =
                 service.getProtectionRequirements(DataClassification.PUBLIC);
         assertNotNull(reqs);
         assertFalse(reqs.isEmpty());
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Logging")));
+    }
+
+    @Test
+    void getProtectionRequirements_shouldReturnRequirements_forInternal() {
+        List<DataClassificationService.ProtectionRequirement> reqs =
+                service.getProtectionRequirements(DataClassification.INTERNAL);
+        assertNotNull(reqs);
+        assertFalse(reqs.isEmpty());
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Logging")));
+        assertTrue(reqs.stream().anyMatch(r -> r.category().equals("Privacy")));
     }
 
     @Test
@@ -112,25 +129,43 @@ class DataClassificationServiceTest {
     @Test
     void isProperlyProtected_shouldReturnTrue_whenAllRequirementsMet() {
         assertTrue(service.isProperlyProtected(
-                SensitiveDataElement.CREDENTIAL_ENCRYPTED_PASSWORD, true, true, true));
+                SensitiveDataElement.CREDENTIAL_ENCRYPTED_PASSWORD, true, true, true, true, true, true));
     }
 
     @Test
     void isProperlyProtected_shouldReturnFalse_whenEncryptionAtRestMissing() {
         assertFalse(service.isProperlyProtected(
-                SensitiveDataElement.CREDENTIAL_ENCRYPTED_PASSWORD, false, true, true));
+                SensitiveDataElement.CREDENTIAL_ENCRYPTED_PASSWORD, false, true, true, true, true, true));
     }
 
     @Test
     void isProperlyProtected_shouldReturnFalse_whenAccessControlMissing() {
         assertFalse(service.isProperlyProtected(
-                SensitiveDataElement.ENCRYPTION_SECRET, true, true, false));
+                SensitiveDataElement.ENCRYPTION_SECRET, true, true, false, true, true, true));
     }
 
     @Test
     void isProperlyProtected_shouldReturnTrue_forPublicEvenWithoutProtection() {
         assertTrue(service.isProperlyProtected(
-                SensitiveDataElement.CREDENTIAL_SERVICE_NAME, false, false, false));
+                SensitiveDataElement.CREDENTIAL_SERVICE_NAME, false, false, false, false, false, false));
+    }
+
+    @Test
+    void isProperlyProtected_shouldReturnFalse_whenLoggingProtectionMissing() {
+        assertFalse(service.isProperlyProtected(
+                SensitiveDataElement.ENCRYPTION_SECRET, true, true, true, false, true, true));
+    }
+
+    @Test
+    void isProperlyProtected_shouldReturnFalse_whenDatabaseEncryptionMissing() {
+        assertFalse(service.isProperlyProtected(
+                SensitiveDataElement.ENCRYPTION_SECRET, true, true, true, true, false, true));
+    }
+
+    @Test
+    void isProperlyProtected_shouldReturnFalse_whenPrivacyEnhancementMissing() {
+        assertFalse(service.isProperlyProtected(
+                SensitiveDataElement.ENCRYPTION_SECRET, true, true, true, true, true, false));
     }
 
     @Test

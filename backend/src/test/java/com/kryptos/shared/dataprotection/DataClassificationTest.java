@@ -12,13 +12,6 @@ class DataClassificationTest {
     }
 
     @Test
-    void levelsShouldBeInCorrectOrdinalOrder() {
-        assertTrue(DataClassification.PUBLIC.ordinal() < DataClassification.INTERNAL.ordinal());
-        assertTrue(DataClassification.INTERNAL.ordinal() < DataClassification.CONFIDENTIAL.ordinal());
-        assertTrue(DataClassification.CONFIDENTIAL.ordinal() < DataClassification.RESTRICTED.ordinal());
-    }
-
-    @Test
     void publicLevelShouldNotRequireProtection() {
         assertFalse(DataClassification.PUBLIC.isRequiresEncryptionAtRest());
         assertFalse(DataClassification.PUBLIC.isRequiresEncryptionInTransit());
@@ -85,5 +78,72 @@ class DataClassificationTest {
         assertTrue(DataClassification.RESTRICTED.isAtLeast(DataClassification.RESTRICTED));
         assertFalse(DataClassification.INTERNAL.isAtLeast(DataClassification.CONFIDENTIAL));
         assertFalse(DataClassification.PUBLIC.isAtLeast(DataClassification.RESTRICTED));
+    }
+
+    @Test
+    void publicLevelShouldNotRequireLoggingProtection() {
+        assertFalse(DataClassification.PUBLIC.isRequiresLoggingProtection());
+    }
+
+    @Test
+    void internalLevelShouldRequireLoggingProtection() {
+        assertTrue(DataClassification.INTERNAL.isRequiresLoggingProtection());
+    }
+
+    @Test
+    void confidentialLevelShouldRequireLoggingProtection() {
+        assertTrue(DataClassification.CONFIDENTIAL.isRequiresLoggingProtection());
+    }
+
+    @Test
+    void restrictedLevelShouldRequireLoggingProtection() {
+        assertTrue(DataClassification.RESTRICTED.isRequiresLoggingProtection());
+    }
+
+    @Test
+    void publicAndInternalShouldNotRequireDatabaseEncryption() {
+        assertFalse(DataClassification.PUBLIC.isRequiresDatabaseEncryption());
+        assertFalse(DataClassification.INTERNAL.isRequiresDatabaseEncryption());
+    }
+
+    @Test
+    void confidentialAndRestrictedShouldRequireDatabaseEncryption() {
+        assertTrue(DataClassification.CONFIDENTIAL.isRequiresDatabaseEncryption());
+        assertTrue(DataClassification.RESTRICTED.isRequiresDatabaseEncryption());
+    }
+
+    @Test
+    void publicLevelShouldNotRequirePrivacyEnhancement() {
+        assertFalse(DataClassification.PUBLIC.isRequiresPrivacyEnhancement());
+    }
+
+    @Test
+    void internalConfidentialRestrictedShouldRequirePrivacyEnhancement() {
+        assertTrue(DataClassification.INTERNAL.isRequiresPrivacyEnhancement());
+        assertTrue(DataClassification.CONFIDENTIAL.isRequiresPrivacyEnhancement());
+        assertTrue(DataClassification.RESTRICTED.isRequiresPrivacyEnhancement());
+    }
+
+    @Test
+    void loggingGuidanceShouldNotBeBlank() {
+        for (DataClassification level : DataClassification.values()) {
+            assertNotNull(level.getLoggingGuidance());
+            assertFalse(level.getLoggingGuidance().isBlank());
+        }
+    }
+
+    @Test
+    void publicLoggingGuidanceShouldAllowFreeLogging() {
+        assertTrue(DataClassification.PUBLIC.getLoggingGuidance().contains("No logging restrictions"));
+    }
+
+    @Test
+    void confidentialLoggingGuidanceShouldRequireMasking() {
+        assertTrue(DataClassification.CONFIDENTIAL.getLoggingGuidance().contains("masked or redacted"));
+    }
+
+    @Test
+    void restrictedLoggingGuidanceShouldProhibitLogging() {
+        assertTrue(DataClassification.RESTRICTED.getLoggingGuidance().contains("never appear in logs"));
     }
 }
