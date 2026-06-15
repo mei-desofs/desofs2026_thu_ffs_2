@@ -20,6 +20,9 @@ class AuditServiceTest {
     @Mock
     private AuditLogRepository auditLogRepository;
 
+    @Mock
+    private LogForwardingService logForwardingService;
+
     @InjectMocks
     private AuditService auditService;
 
