@@ -28,6 +28,14 @@ class JwtServiceTest {
         ReflectionTestUtils.setField(jwtService, "expiration", TEST_EXPIRATION);
     }
 
+    private KryptosUserDetails createMockUserDetails(String username) {
+        if (username == null) return null;
+        com.kryptos.user.domain.User user = new com.kryptos.user.domain.User();
+        user.setUsername(username);
+        user.setSessionTokenValidAfter(java.time.LocalDateTime.now().minusDays(1));
+        return new KryptosUserDetails(user);
+    }
+
     @Test
     void generateToken_shouldProduceValidToken() {
         String token = jwtService.generateToken("testuser", "USER");
@@ -46,39 +54,39 @@ class JwtServiceTest {
     @Test
     void isTokenValid_shouldReturnTrue_forValidToken() {
         String token = jwtService.generateToken("testuser", "USER");
-        assertTrue(jwtService.isTokenValid(token, "testuser"));
+        assertTrue(jwtService.isTokenValid(token, createMockUserDetails("testuser")));
     }
 
     @Test
     void isTokenValid_shouldReturnFalse_forWrongUsername() {
         String token = jwtService.generateToken("testuser", "USER");
-        assertFalse(jwtService.isTokenValid(token, "wronguser"));
+        assertFalse(jwtService.isTokenValid(token, createMockUserDetails("wronguser")));
     }
 
     @Test
     void isTokenValid_shouldReturnFalse_forTamperedToken() {
         String token = jwtService.generateToken("testuser", "USER");
         String tampered = token.substring(0, token.lastIndexOf('.') + 1) + "tampered";
-        assertFalse(jwtService.isTokenValid(tampered, "testuser"));
+        assertFalse(jwtService.isTokenValid(tampered, createMockUserDetails("testuser")));
     }
 
     @Test
     void isTokenValid_shouldReturnFalse_forGarbageToken() {
-        assertFalse(jwtService.isTokenValid("not-a-jwt-token", "testuser"));
-        assertFalse(jwtService.isTokenValid("", "testuser"));
+        assertFalse(jwtService.isTokenValid("not-a-jwt-token", createMockUserDetails("testuser")));
+        assertFalse(jwtService.isTokenValid("", createMockUserDetails("testuser")));
     }
 
     @Test
     void isTokenValid_shouldReturnFalse_forNullUsername() {
         String token = jwtService.generateToken("testuser", "USER");
-        assertFalse(jwtService.isTokenValid(token, null));
+        assertFalse(jwtService.isTokenValid(token, createMockUserDetails(null)));
     }
 
     @Test
     void isTokenValid_shouldReturnFalse_forExpiredToken() {
         ReflectionTestUtils.setField(jwtService, "expiration", -1000L);
         String expiredToken = jwtService.generateToken("testuser", "USER");
-        assertFalse(jwtService.isTokenValid(expiredToken, "testuser"));
+        assertFalse(jwtService.isTokenValid(expiredToken, createMockUserDetails("testuser")));
     }
 
     @Test

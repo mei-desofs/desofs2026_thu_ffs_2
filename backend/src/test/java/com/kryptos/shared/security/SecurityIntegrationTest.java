@@ -178,7 +178,7 @@ class SecurityIntegrationTest {
         ReflectionTestUtils.setField(jwtService, "expiration", -1000L);
         String expiredToken = jwtService.generateToken("testuser", "USER");
 
-        assertFalse(jwtService.isTokenValid(expiredToken, "testuser"));
+        assertFalse(jwtService.isTokenValid(expiredToken, new KryptosUserDetails(testUser)));
     }
 
     @Test
