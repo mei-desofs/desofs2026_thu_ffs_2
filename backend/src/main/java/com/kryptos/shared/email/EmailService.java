@@ -36,4 +36,18 @@ public class EmailService {
             throw new RuntimeException("Failed to send 2FA email");
         }
     }
+
+    public void sendSuspiciousAuthNotification(String toEmail, String subject, String message) {
+        try {
+            SimpleMailMessage emailMessage = new SimpleMailMessage();
+            emailMessage.setFrom(fromEmail);
+            emailMessage.setTo(toEmail);
+            emailMessage.setSubject(subject);
+            emailMessage.setText(message);
+            mailSender.send(emailMessage);
+            log.info("Suspicious auth notification sent to {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send suspicious auth notification to {}: {}", toEmail, e.getMessage());
+        }
+    }
 }
