@@ -118,3 +118,39 @@ The `CredentialResponse` DTO exposes metadata but hides the raw encrypted passwo
 ### 2.4 Credential Entity (Write Restrictions)
 The `CreateCredentialRequest` and `UpdateCredentialRequest` strictly bind allowable inputs.
 - Read-only fields like `createdAt`, `updatedAt`, and `owner` (user association) cannot be modified by the client. The backend forcibly associates the credential with the currently authenticated user context.
+
+### 2.5 Vault Entity (Read/Write Restrictions)
+- **Read (`VaultResponse`):** Exposes `id`, `name`, `description`, and `ownerId`.
+- **Write:** Clients can only provide `name` and `description`. The `ownerId` is implicitly bound to the caller.
+
+### 2.6 Trusted Device Entity (Read/Write Restrictions)
+- **Read (`TrustedDeviceResponse`):** Exposes `id`, `deviceName`, `deviceFingerprint`, `ipAddress`, `lastUsedAt`, and `active`. User relationships are not directly exposed.
+- **Write:** Only `deviceName` and `deviceFingerprint` are accepted during registration.
+
+### 2.7 Audit Log Entity (Read/Write Restrictions)
+- **Read:** Admins and Auditors can view the full log including `action`, `performedBy`, `targetResource`, `details`, `timestamp`, `hash`, and `previousHash`.
+- **Write:** Completely restricted. Audit logs are immutable and can only be appended sequentially by the backend service. Modifying or deleting logs is blocked at the entity (`@PreUpdate`, `@PreRemove`) and repository levels.
+
+---
+
+## 3. Adaptive Security Controls (V8.2.4)
+
+Adaptive security controls evaluate a consumer's environmental and contextual attributes to make dynamic authentication and authorization decisions both at login and during an active session.
+
+### 3.1 Context-Aware Authentication (Trusted Devices)
+- **Login Flow:** The `/api/auth/login` endpoint analyzes the `X-Device-Fingerprint` header.
+- **2FA Bypass:** If a user has 2FA enabled, but the authentication request originates from a registered and active "Trusted Device" associated with that user, the 2FA challenge is bypassed. For unknown devices, the 2FA challenge is strictly enforced.
+
+### 3.2 Continuous Session Context Binding
+- **JWT Context Embedding:** Upon issuance, JWTs embed the user's current IP Address (extracted safely considering proxies via `X-Forwarded-For`) and `User-Agent`.
+- **Request Validation:** The `JwtAuthFilter` checks every incoming API request. If the request's IP Address or User-Agent do not match the claims embedded in the token, the session is rejected (protecting against session hijacking and token theft across devices).
+
+---
+
+## 4. Immediate Application of Authorization Decisions (V8.3.2)
+
+To verify that changes to values on which authorization decisions are made are applied immediately without relying on token expiration delays (mitigating the stateless nature of JWTs):
+
+- **Instant Revocation:** The system relies on the `sessionTokenValidAfter` timestamp within the `User` entity. The `JwtAuthFilter` strictly refuses any token issued prior to this timestamp.
+- **Role Changes:** When an administrator alters a user's role (`UserService.updateUserRole`), the user's `sessionTokenValidAfter` is immediately set to `LocalDateTime.now()`. All active sessions for that user instantly become invalid.
+- **Security Events:** Similar instant invalidations occur when an account is locked, deleted/deactivated, or when a password is successfully reset.

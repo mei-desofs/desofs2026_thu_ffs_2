@@ -39,13 +39,15 @@ public class JwtService {
 
     private static final String AUDIENCE = "kryptos";
 
-    public String generateToken(String username, String role) {
+    public String generateToken(String username, String role, String ipAddress, String userAgent) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
                 .subject(username)
                 .claim("role", role)
+                .claim("ip", ipAddress)
+                .claim("ua", userAgent)
                 .audience().add(AUDIENCE).and()
                 .issuedAt(now)
                 .expiration(expiry)
@@ -72,13 +74,20 @@ public class JwtService {
         }
     }
 
-    public boolean isTokenValid(String token, KryptosUserDetails userDetails) {
+    public boolean isTokenValid(String token, KryptosUserDetails userDetails, String currentIp, String currentUserAgent) {
         try {
             String tokenUsername = extractUsername(token);
             if (userDetails == null || !userDetails.getUsername().equals(tokenUsername)) {
                 return false;
             }
             if (isTokenExpired(token) || isTokenRevoked(token)) {
+                return false;
+            }
+
+            String tokenIp = extractClaim(token, claims -> claims.get("ip", String.class));
+            String tokenUa = extractClaim(token, claims -> claims.get("ua", String.class));
+
+            if (tokenIp == null || tokenUa == null || !tokenIp.equals(currentIp) || !tokenUa.equals(currentUserAgent)) {
                 return false;
             }
             

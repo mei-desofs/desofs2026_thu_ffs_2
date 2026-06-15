@@ -74,7 +74,7 @@ class SecurityIntegrationTest {
 
     @Test
     void revokeToken_shouldPersistRevokedToken() {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
 
         jwtService.revokeToken(token);
 
@@ -94,7 +94,7 @@ class SecurityIntegrationTest {
 
     @Test
     void revokeToken_shouldNotThrow_whenCalledTwice() {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
 
         jwtService.revokeToken(token);
         jwtService.revokeToken(token);
@@ -104,7 +104,7 @@ class SecurityIntegrationTest {
 
     @Test
     void isTokenRevoked_shouldReturnTrue_whenTokenInBlacklist() {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
         when(revokedTokenRepository.existsByTokenHashAndExpiresAtAfter(anyString(), any(LocalDateTime.class)))
                 .thenReturn(true);
 
@@ -113,7 +113,7 @@ class SecurityIntegrationTest {
 
     @Test
     void isTokenRevoked_shouldReturnFalse_whenTokenNotInBlacklist() {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
         when(revokedTokenRepository.existsByTokenHashAndExpiresAtAfter(anyString(), any(LocalDateTime.class)))
                 .thenReturn(false);
 
@@ -127,7 +127,7 @@ class SecurityIntegrationTest {
 
     @Test
     void isTokenRevoked_shouldUseTokenHash_forLookup() {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
         when(revokedTokenRepository.existsByTokenHashAndExpiresAtAfter(anyString(), any(LocalDateTime.class)))
                 .thenReturn(false);
 
@@ -138,7 +138,7 @@ class SecurityIntegrationTest {
 
     @Test
     void hashToken_shouldProduce64CharHexString() {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
         String hash = ReflectionTestUtils.invokeMethod(jwtService, "hashToken", token);
         assertNotNull(hash);
         assertEquals(64, hash.length());
@@ -146,7 +146,7 @@ class SecurityIntegrationTest {
 
     @Test
     void hashToken_shouldBeDeterministic() {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
         String hash1 = ReflectionTestUtils.invokeMethod(jwtService, "hashToken", token);
         String hash2 = ReflectionTestUtils.invokeMethod(jwtService, "hashToken", token);
         assertEquals(hash1, hash2);
@@ -154,8 +154,8 @@ class SecurityIntegrationTest {
 
     @Test
     void hashToken_shouldDiffer_forDifferentTokens() {
-        String token1 = jwtService.generateToken("user1", "USER");
-        String token2 = jwtService.generateToken("user2", "USER");
+        String token1 = jwtService.generateToken("user1", "USER", "127.0.0.1", "TestAgent");
+        String token2 = jwtService.generateToken("user2", "USER", "127.0.0.1", "TestAgent");
         String hash1 = ReflectionTestUtils.invokeMethod(jwtService, "hashToken", token1);
         String hash2 = ReflectionTestUtils.invokeMethod(jwtService, "hashToken", token2);
         assertNotEquals(hash1, hash2);
@@ -163,7 +163,7 @@ class SecurityIntegrationTest {
 
     @Test
     void revokedToken_shouldBeRejected_afterLogout() {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
 
         jwtService.revokeToken(token);
 
@@ -176,15 +176,15 @@ class SecurityIntegrationTest {
     @Test
     void isTokenValid_shouldReturnFalse_whenTokenExpired() {
         ReflectionTestUtils.setField(jwtService, "expiration", -1000L);
-        String expiredToken = jwtService.generateToken("testuser", "USER");
+        String expiredToken = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
 
-        assertFalse(jwtService.isTokenValid(expiredToken, new KryptosUserDetails(testUser)));
+        assertFalse(jwtService.isTokenValid(expiredToken, new KryptosUserDetails(testUser), "127.0.0.1", "TestAgent"));
     }
 
     @Test
     void expiredToken_shouldNotBeRevocable() {
         ReflectionTestUtils.setField(jwtService, "expiration", -1000L);
-        String expiredToken = jwtService.generateToken("testuser", "USER");
+        String expiredToken = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
 
         assertThrows(RuntimeException.class,
                 () -> jwtService.revokeToken(expiredToken));
@@ -192,7 +192,7 @@ class SecurityIntegrationTest {
 
     @Test
     void authServiceLogout_shouldAudit() {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
 
         authService.logout(token, "testuser");
 
@@ -201,7 +201,7 @@ class SecurityIntegrationTest {
 
     @Test
     void fullLogoutFlow_shouldRevokeTokenAndAudit() {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
 
         authService.logout(token, "testuser");
 
@@ -211,7 +211,7 @@ class SecurityIntegrationTest {
 
     @Test
     void filter_shouldContinueChain_whenTokenRevoked() throws Exception {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
         when(revokedTokenRepository.existsByTokenHashAndExpiresAtAfter(anyString(), any(LocalDateTime.class)))
                 .thenReturn(true);
 
@@ -229,7 +229,7 @@ class SecurityIntegrationTest {
 
     @Test
     void filter_shouldContinueChain_whenTokenValid() throws Exception {
-        String token = jwtService.generateToken("testuser", "USER");
+        String token = jwtService.generateToken("testuser", "USER", "127.0.0.1", "TestAgent");
         when(revokedTokenRepository.existsByTokenHashAndExpiresAtAfter(anyString(), any(LocalDateTime.class)))
                 .thenReturn(false);
         when(userRepository.findByUsername("testuser")).thenReturn(java.util.Optional.of(testUser));

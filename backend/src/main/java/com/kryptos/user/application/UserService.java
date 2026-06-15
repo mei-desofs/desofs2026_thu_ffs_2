@@ -68,6 +68,11 @@ public class UserService {
         
         String adminUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         user.setRole(newRole);
+        
+        // ASVS V8.3.2: Ensure authorization decisions based on role are applied immediately
+        // by invalidating all existing JWT sessions for this user.
+        user.setSessionTokenValidAfter(LocalDateTime.now());
+        
         userRepository.save(user);
         auditService.log(AuditAction.USER_ROLE_UPDATE, adminUsername, "user",
                 "Updated role for user: " + user.getUsername() + " (id: " + userId + ") to " + newRole);
