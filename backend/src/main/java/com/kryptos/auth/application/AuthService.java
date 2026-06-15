@@ -47,6 +47,8 @@ public class AuthService {
     private final TrustedDeviceRepository trustedDeviceRepository;
     private final SuspiciousAuthNotificationService suspiciousAuthNotificationService;
     private final AuthExpiryNotificationService authExpiryNotificationService;
+    private final BackupCodeService backupCodeService;
+    private final TotpService totpService;
 
     private final ConcurrentHashMap<String, Integer> loginAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> lockouts = new ConcurrentHashMap<>();
@@ -241,9 +243,29 @@ public class AuthService {
         return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
     }
 
+    @Transactional
+    public AuthResponse verifyBackupCode(com.kryptos.auth.application.dto.BackupCodeVerifyRequest request, String ipAddress, String userAgent) {
+        User user = userRepository.findByUsername(request.username())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+
+        if (!backupCodeService.validateAndUseBackupCode(user, request.backupCode())) {
+            auditService.log(AuditAction.LOGIN_FAILED, user.getUsername(), "auth",
+                    "Invalid backup code attempt");
+            throw new IllegalArgumentException("Invalid backup code");
+        }
+
+        user.setSessionTokenValidAfter(LocalDateTime.now().minusSeconds(1));
+        userRepository.save(user);
+
+        String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name(), ipAddress, userAgent);
+        auditService.log(AuditAction.LOGIN, user.getUsername(), "auth", "Backup code used for 2FA verification");
+
+        return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
+    }
+
 
     @Transactional
-    public void enableTwoFa(String username) {
+    public com.kryptos.auth.application.dto.BackupCodesResponse enableTwoFa(String username) {
         jwtService.requireRecentAuthentication();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -256,15 +278,22 @@ public class AuthService {
         userRepository.save(user);
         auditService.log(AuditAction.REGISTER, username, "auth", "2FA enabled");
 
+        java.util.List<String> backupCodes = backupCodeService.generateBackupCodes(user);
+
         suspiciousAuthNotificationService.notifySuspiciousAttempt(
             new com.kryptos.auth.application.dto.SuspiciousAuthAttempt(
                 user.getUsername(),
                 user.getEmail(),
-                "Two-factor authentication has been enabled on your account",
+                "Two-factor authentication has been enabled on your account. Save your backup codes in a safe place.",
                 "unknown",
                 "unknown",
                 LocalDateTime.now()
             )
+        );
+
+        return new com.kryptos.auth.application.dto.BackupCodesResponse(
+            backupCodes,
+            "2FA enabled. Save these backup codes in a safe place. You can use them to access your account if you lose your 2FA device."
         );
     }
 
@@ -294,6 +323,104 @@ public class AuthService {
                 LocalDateTime.now()
             )
         );
+    }
+
+    @Transactional
+    public com.kryptos.auth.application.dto.TotpSetupResponse setupTotp(String username) {
+        jwtService.requireRecentAuthentication();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (user.isTotpEnabled()) {
+            throw new IllegalArgumentException("TOTP is already enabled");
+        }
+
+        String secret = totpService.generateSecret();
+        String qrCode = totpService.generateQrCode(secret, username, "Kryptos");
+
+        return new com.kryptos.auth.application.dto.TotpSetupResponse(
+            secret,
+            qrCode,
+            "Scan this QR code with your authenticator app and enter the 6-digit code to verify setup."
+        );
+    }
+
+    @Transactional
+    public void confirmTotpSetup(String username, String secret, String code) {
+        jwtService.requireRecentAuthentication();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!totpService.validate(secret, code)) {
+            throw new IllegalArgumentException("Invalid TOTP code. Please try again.");
+        }
+
+        user.setTotpEnabled(true);
+        user.setTotpSecret(secret);
+        userRepository.save(user);
+        auditService.log(AuditAction.REGISTER, username, "auth", "TOTP enabled");
+
+        suspiciousAuthNotificationService.notifySuspiciousAttempt(
+            new com.kryptos.auth.application.dto.SuspiciousAuthAttempt(
+                user.getUsername(),
+                user.getEmail(),
+                "Time-based one-time password (TOTP) has been enabled on your account",
+                "unknown",
+                "unknown",
+                LocalDateTime.now()
+            )
+        );
+    }
+
+    @Transactional
+    public void disableTotp(String username) {
+        jwtService.requireRecentAuthentication();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!user.isTotpEnabled()) {
+            throw new IllegalArgumentException("TOTP is not enabled");
+        }
+
+        user.setTotpEnabled(false);
+        user.setTotpSecret(null);
+        userRepository.save(user);
+        auditService.log(AuditAction.REGISTER, username, "auth", "TOTP disabled");
+
+        suspiciousAuthNotificationService.notifySuspiciousAttempt(
+            new com.kryptos.auth.application.dto.SuspiciousAuthAttempt(
+                user.getUsername(),
+                user.getEmail(),
+                "Time-based one-time password (TOTP) has been disabled on your account",
+                "unknown",
+                "unknown",
+                LocalDateTime.now()
+            )
+        );
+    }
+
+    @Transactional
+    public AuthResponse verifyTotp(com.kryptos.auth.application.dto.TotpVerifyRequest request, String ipAddress, String userAgent) {
+        User user = userRepository.findByUsername(request.username())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+
+        if (!user.isTotpEnabled() || user.getTotpSecret() == null) {
+            throw new IllegalArgumentException("TOTP is not enabled");
+        }
+
+        if (!totpService.validate(user.getTotpSecret(), request.code())) {
+            auditService.log(AuditAction.LOGIN_FAILED, user.getUsername(), "auth",
+                    "Invalid TOTP code");
+            throw new IllegalArgumentException("Invalid TOTP code");
+        }
+
+        user.setSessionTokenValidAfter(LocalDateTime.now().minusSeconds(1));
+        userRepository.save(user);
+
+        String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name(), ipAddress, userAgent);
+        auditService.log(AuditAction.LOGIN, user.getUsername(), "auth", "TOTP verified, user logged in");
+
+        return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
     }
 
     private void sendTwoFaCode(User user) {
