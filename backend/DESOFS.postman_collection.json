@@ -1,0 +1,93 @@
+{
+  "info": {
+    "_postman_id": "84bc0afc-61b4-4934-8864-4bb3ab9325dc",
+    "name": "DESOFS",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "43679795"
+  },
+  "item": [
+    {
+      "name": "Create User",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"username\": \"testuser\",\r\n  \"email\": \"testuser@example.com\",\r\n  \"password\": \"Password12345!\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/register",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "// O Segredo partilhado (tem de ser o mesmo do HmacProperties.java)\r",
+          "const secret = \"super-secret-kryptos-hmac-key-change-in-production-1234567890\";\r",
+          "\r",
+          "// 1. Gerar o Timestamp atual (em segundos)\r",
+          "const timestamp = Math.floor(Date.now() / 1000).toString();\r",
+          "\r",
+          "// 2. Extrair o Método (ex: POST, GET)\r",
+          "const method = pm.request.method;\r",
+          "\r",
+          "// 3. Extrair a URI, incluindo querystring se existir\r",
+          "let url = pm.request.url.getPathWithQuery();\r",
+          "if (!url) { url = \"/\"; }\r",
+          "\r",
+          "// 4. Obter o corpo do pedido JSON (se existir)\r",
+          "let body = \"\";\r",
+          "if (pm.request.body && pm.request.body.raw) {\r",
+          "    // Se usares {{variaveis}} no Postman, isto expande-as antes de assinar\r",
+          "    body = pm.variables.replaceIn(pm.request.body.raw); \r",
+          "}\r",
+          "\r",
+          "// 5. Construir a Payload a ser assinada (ordem estrita definida no Java)\r",
+          "const payloadToSign = timestamp + method + url + body;\r",
+          "\r",
+          "// 6. Calcular a assinatura HMAC-SHA256 usando CryptoJS e codificar para Base64\r",
+          "const hmac = CryptoJS.HmacSHA256(payloadToSign, secret);\r",
+          "const hmacBase64 = CryptoJS.enc.Base64.stringify(hmac);\r",
+          "\r",
+          "// 7. Injetar automaticamente nos Headers do pedido!\r",
+          "pm.request.headers.add({ key: \"X-Timestamp\", value: timestamp });\r",
+          "pm.request.headers.add({ key: \"X-Signature\", value: hmacBase64 });"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ]
+}

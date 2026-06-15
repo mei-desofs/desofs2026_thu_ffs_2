@@ -1,18 +1,23 @@
 package com.kryptos.auth.api;
 
+import java.security.Principal;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.kryptos.auth.application.AuthService;
 import com.kryptos.auth.application.dto.AuthResponse;
 import com.kryptos.auth.application.dto.LoginRequest;
-import com.kryptos.auth.application.dto.PasswordResetConfirm;
-import com.kryptos.auth.application.dto.PasswordResetRequest;
+import com.kryptos.auth.application.dto.LoginResponse;
 import com.kryptos.auth.application.dto.RegisterRequest;
+import com.kryptos.auth.application.dto.TwoFaVerifyRequest;
+import com.kryptos.shared.util.RequestUtils;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -24,26 +29,46 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.register(request));
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
+        String ip = RequestUtils.extractClientIp(httpRequest);
+        String ua = RequestUtils.extractUserAgent(httpRequest);
+        return ResponseEntity.ok(authService.register(request, ip, ua));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            @RequestHeader(value = "X-Device-Fingerprint", required = false) String deviceFingerprint,
+            HttpServletRequest httpRequest) {
+        String ip = RequestUtils.extractClientIp(httpRequest);
+        String ua = RequestUtils.extractUserAgent(httpRequest);
+        return ResponseEntity.ok(authService.login(request, deviceFingerprint, ip, ua));
     }
 
-    @PostMapping("/request-reset")
-    public ResponseEntity<Void> requestPasswordReset(
-            @Valid @RequestBody PasswordResetRequest request) {
-        authService.requestPasswordReset(request);
+    @PostMapping("/2fa/verify")
+    public ResponseEntity<AuthResponse> verifyTwoFa(@Valid @RequestBody TwoFaVerifyRequest request, HttpServletRequest httpRequest) {
+        String ip = RequestUtils.extractClientIp(httpRequest);
+        String ua = RequestUtils.extractUserAgent(httpRequest);
+        return ResponseEntity.ok(authService.verifyTwoFaCode(request, ip, ua));
+    }
+
+    @PostMapping("/2fa/enable")
+    public ResponseEntity<Void> enableTwoFa(Principal principal) {
+        authService.enableTwoFa(principal.getName());
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/confirm-reset")
-    public ResponseEntity<Void> confirmPasswordReset(
-            @Valid @RequestBody PasswordResetConfirm confirm) {
-        authService.confirmPasswordReset(confirm);
+    @PostMapping("/2fa/disable")
+    public ResponseEntity<Void> disableTwoFa(Principal principal) {
+        authService.disableTwoFa(principal.getName());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authHeader,
+                                       Principal principal) {
+        String token = authHeader.replace("Bearer ", "");
+        authService.logout(token, principal.getName());
         return ResponseEntity.ok().build();
     }
 }

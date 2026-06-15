@@ -10,4 +10,5 @@ public interface VaultRepository extends JpaRepository<Vault, UUID> {
     Optional<Vault> findByIdAndOwnerId(UUID id, UUID ownerId);
     boolean existsByIdAndOwnerId(UUID id, UUID ownerId);
     Optional<Vault> findByOwnerIdAndName(UUID ownerId, String name);
+    long countByOwnerId(UUID ownerId);
 }

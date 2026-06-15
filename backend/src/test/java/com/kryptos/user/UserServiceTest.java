@@ -26,8 +26,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
+import com.kryptos.auth.application.SuspiciousAuthNotificationService;
 import com.kryptos.shared.exception.ForbiddenException;
+import com.kryptos.shared.exception.ReauthenticationRequiredException;
 import com.kryptos.shared.exception.ResourceNotFoundException;
+import com.kryptos.shared.security.JwtService;
 import com.kryptos.user.application.UserService;
 import com.kryptos.user.application.dto.UpdateUserRequest;
 import com.kryptos.user.application.dto.UserResponse;
@@ -39,7 +42,9 @@ import com.kryptos.user.domain.UserRepository;
 class UserServiceTest {
 
     @Mock private UserRepository userRepository;
-    @Mock private AuditService auditService; // 1. Adicionado o mock do AuditService
+    @Mock private AuditService auditService;
+    @Mock private JwtService jwtService;
+    @Mock private SuspiciousAuthNotificationService suspiciousAuthNotificationService;
 
     @InjectMocks
     private UserService userService;
@@ -126,12 +131,12 @@ class UserServiceTest {
         when(userRepository.save(any())).thenReturn(targetUser);
 
         UpdateUserRequest request = new UpdateUserRequest("newemail@test.com", "newusername");
-        userService.update(targetUserId, request);
+        userService.update(targetUserId, request, "targetuser", false);
 
         assertEquals("newemail@test.com", targetUser.getEmail());
         assertEquals("newusername", targetUser.getUsername());
         verify(userRepository).save(targetUser);
-        verify(auditService).log(eq(AuditAction.USER_PROFILE_UPDATE), eq("admin_user"), eq("user"), any());
+        verify(auditService).log(eq(AuditAction.USER_PROFILE_UPDATE), eq("targetuser"), eq("user"), any());
     }
 
     @Test
@@ -141,7 +146,7 @@ class UserServiceTest {
 
         UpdateUserRequest request = new UpdateUserRequest("taken@test.com", "username");
         assertThrows(IllegalArgumentException.class,
-                () -> userService.update(targetUserId, request));
+                () -> userService.update(targetUserId, request, "targetuser", false));
     }
 
     @Test
@@ -150,7 +155,7 @@ class UserServiceTest {
 
         UpdateUserRequest request = new UpdateUserRequest("newemail@test.com", "username");
         assertThrows(ResourceNotFoundException.class,
-                () -> userService.update(targetUserId, request));
+                () -> userService.update(targetUserId, request, "targetuser", false));
     }
 
     @Test
@@ -159,10 +164,91 @@ class UserServiceTest {
         when(userRepository.save(any())).thenReturn(targetUser);
 
         UpdateUserRequest request = new UpdateUserRequest(null, "newusername");
-        userService.update(targetUserId, request);
+        userService.update(targetUserId, request, "targetuser", false);
 
-        assertEquals("target@kryptos.com", targetUser.getEmail()); // Email não mudou
+        assertEquals("target@kryptos.com", targetUser.getEmail());
         assertEquals("newusername", targetUser.getUsername());
         verify(userRepository).save(targetUser);
+    }
+
+    @Test
+    void update_shouldThrow_whenUserAttemptsToUpdateOtherUser() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+
+        UpdateUserRequest request = new UpdateUserRequest("newemail@example.com", "newusername");
+
+        assertThrows(ForbiddenException.class,
+                () -> userService.update(targetUserId, request, "attacker_user", false));
+    }
+
+    @Test
+    void update_shouldSucceed_whenAdminUpdatesOtherUser() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(userRepository.existsByEmailAndIdNot("admin@example.com", targetUserId)).thenReturn(false);
+        when(userRepository.save(any())).thenReturn(targetUser);
+
+        UpdateUserRequest request = new UpdateUserRequest("admin@example.com", "admin_update");
+
+        UserResponse response = userService.update(targetUserId, request, "admin_user", true);
+
+        assertNotNull(response);
+        verify(userRepository).save(targetUser);
+        verify(auditService).log(eq(AuditAction.USER_PROFILE_UPDATE), eq("admin_user"), eq("user"), any());
+    }
+
+    @Test
+    void update_shouldSucceed_whenUserUpdatesOwnProfile() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(userRepository.existsByEmailAndIdNot("newemail@example.com", targetUserId)).thenReturn(false);
+        when(userRepository.save(any())).thenReturn(targetUser);
+
+        UpdateUserRequest request = new UpdateUserRequest("newemail@example.com", null);
+
+        UserResponse response = userService.update(targetUserId, request, "targetuser", false);
+
+        assertNotNull(response);
+        verify(userRepository).save(targetUser);
+    }
+
+    @Test
+    void deleteById_shouldSoftDeleteUserAndInvalidateSession() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+
+        userService.deleteById(targetUserId);
+
+        assertFalse(targetUser.isActive());
+        assertNotNull(targetUser.getSessionTokenValidAfter());
+        verify(userRepository).save(targetUser);
+        verify(auditService).log(eq(AuditAction.USER_DELETE), eq("admin_user"), eq("user"), any());
+    }
+
+    @Test
+    void terminateUserSessions_shouldUpdateSessionTokenValidAfter() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+
+        userService.terminateUserSessions(targetUserId);
+
+        assertNotNull(targetUser.getSessionTokenValidAfter());
+        verify(userRepository).save(targetUser);
+        verify(auditService).log(eq(AuditAction.LOGOUT), eq("admin_user"), eq("user"), any());
+    }
+
+    @Test
+    void terminateAllSessions_shouldCallRepository() {
+        userService.terminateAllSessions();
+
+        verify(userRepository).terminateAllSessions(any());
+        verify(auditService).log(eq(AuditAction.LOGOUT), eq("admin_user"), eq("user"), any());
+    }
+
+    @Test
+    void update_shouldThrowReauthenticationRequiredException_whenTokenIsStale() {
+        org.mockito.Mockito.doThrow(new ReauthenticationRequiredException("Stale token"))
+                .when(jwtService).requireRecentAuthentication();
+
+        UpdateUserRequest request = new UpdateUserRequest("newemail@example.com", "newusername");
+
+        assertThrows(ReauthenticationRequiredException.class,
+                () -> userService.update(targetUserId, request, "targetuser", false));
     }
 }
