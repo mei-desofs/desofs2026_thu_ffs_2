@@ -58,6 +58,7 @@ class AuthServiceTest {
     @Mock private EmailService emailService;
     @Mock private com.kryptos.trusteddevice.domain.TrustedDeviceRepository trustedDeviceRepository;
     @Mock private com.kryptos.auth.application.SuspiciousAuthNotificationService suspiciousAuthNotificationService;
+    @Mock private com.kryptos.auth.application.AuthExpiryNotificationService authExpiryNotificationService;
 
     @InjectMocks
     private AuthService authService;
