@@ -11,9 +11,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.kryptos.auth.application.AuthService;
 import com.kryptos.auth.application.dto.AuthResponse;
+import com.kryptos.auth.application.dto.BackupCodeVerifyRequest;
+import com.kryptos.auth.application.dto.BackupCodesResponse;
 import com.kryptos.auth.application.dto.LoginRequest;
 import com.kryptos.auth.application.dto.LoginResponse;
 import com.kryptos.auth.application.dto.RegisterRequest;
+import com.kryptos.auth.application.dto.TotpSetupResponse;
+import com.kryptos.auth.application.dto.TotpVerifyRequest;
 import com.kryptos.auth.application.dto.TwoFaVerifyRequest;
 import com.kryptos.shared.util.RequestUtils;
 
@@ -52,16 +56,48 @@ public class AuthController {
         return ResponseEntity.ok(authService.verifyTwoFaCode(request, ip, ua));
     }
 
+    @PostMapping("/2fa/verify-backup-code")
+    public ResponseEntity<AuthResponse> verifyBackupCode(@Valid @RequestBody BackupCodeVerifyRequest request, HttpServletRequest httpRequest) {
+        String ip = RequestUtils.extractClientIp(httpRequest);
+        String ua = RequestUtils.extractUserAgent(httpRequest);
+        return ResponseEntity.ok(authService.verifyBackupCode(request, ip, ua));
+    }
+
     @PostMapping("/2fa/enable")
-    public ResponseEntity<Void> enableTwoFa(Principal principal) {
-        authService.enableTwoFa(principal.getName());
-        return ResponseEntity.ok().build();
+    public ResponseEntity<BackupCodesResponse> enableTwoFa(Principal principal) {
+        return ResponseEntity.ok(authService.enableTwoFa(principal.getName()));
     }
 
     @PostMapping("/2fa/disable")
     public ResponseEntity<Void> disableTwoFa(Principal principal) {
         authService.disableTwoFa(principal.getName());
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/totp/setup")
+    public ResponseEntity<TotpSetupResponse> setupTotp(Principal principal) {
+        return ResponseEntity.ok(authService.setupTotp(principal.getName()));
+    }
+
+    @PostMapping("/totp/confirm")
+    public ResponseEntity<Void> confirmTotpSetup(Principal principal,
+            @RequestHeader("X-TOTP-Secret") String secret,
+            @RequestHeader("X-TOTP-Code") String code) {
+        authService.confirmTotpSetup(principal.getName(), secret, code);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/totp/disable")
+    public ResponseEntity<Void> disableTotp(Principal principal) {
+        authService.disableTotp(principal.getName());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/totp/verify")
+    public ResponseEntity<AuthResponse> verifyTotp(@Valid @RequestBody TotpVerifyRequest request, HttpServletRequest httpRequest) {
+        String ip = RequestUtils.extractClientIp(httpRequest);
+        String ua = RequestUtils.extractUserAgent(httpRequest);
+        return ResponseEntity.ok(authService.verifyTotp(request, ip, ua));
     }
 
     @PostMapping("/logout")

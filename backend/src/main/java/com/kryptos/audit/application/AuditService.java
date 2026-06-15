@@ -17,6 +17,7 @@ import java.util.HexFormat;
 public class AuditService {
 
     private final AuditLogRepository auditLogRepository;
+    private final LogForwardingService logForwardingService;
 
     @Transactional
     public void log(String action, String performedBy, String targetResource, String details) {
@@ -39,7 +40,9 @@ public class AuditService {
                 .previousHash(previousHash)
                 .build();
 
-        auditLogRepository.save(entry);
+        AuditLog savedEntry = auditLogRepository.save(entry);
+
+        logForwardingService.forwardLog(savedEntry);
     }
 
     private String computeHash(String action, String performedBy, String targetResource,

@@ -2,6 +2,7 @@ package com.kryptos.shared.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -38,6 +39,7 @@ public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
     private final Optional<HmacAuthenticationFilter> hmacAuthenticationFilter;
     private final KryptosUserDetailsService userDetailsService;
+    private final Environment environment;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -46,7 +48,12 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/2fa/verify").permitAll()
                 .requestMatchers("/api/auth/2fa/enable", "/api/auth/2fa/disable").authenticated()
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                // V13.4.5 — Swagger/OpenAPI only accessible in non-prod profiles
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**")
+                    .access((authentication, context) -> {
+                        boolean isProd = Arrays.asList(environment.getActiveProfiles()).contains("prod");
+                        return new org.springframework.security.authorization.AuthorizationDecision(!isProd);
+                    })
                 .anyRequest().authenticated()
             )
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
