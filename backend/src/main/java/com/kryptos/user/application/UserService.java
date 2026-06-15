@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
+import com.kryptos.auth.application.SuspiciousAuthNotificationService;
+import com.kryptos.auth.application.dto.SuspiciousAuthAttempt;
 import com.kryptos.shared.exception.ForbiddenException;
 import com.kryptos.shared.exception.ResourceNotFoundException;
 import com.kryptos.shared.security.JwtService;
@@ -29,6 +31,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final JwtService jwtService;
+    private final SuspiciousAuthNotificationService suspiciousAuthNotificationService;
 
     public List<UserResponse> findAll() {
         return userRepository.findAll().stream()
@@ -97,11 +100,22 @@ public class UserService {
             throw new ForbiddenException("Unauthorized: You can only update your own profile");
         }
 
+        String oldEmail = user.getEmail();
         if (request.email() != null && !request.email().isBlank()) {
             if (userRepository.existsByEmailAndIdNot(request.email(), userId)) {
                 throw new IllegalArgumentException("Email already in use");
             }
             user.setEmail(request.email());
+            suspiciousAuthNotificationService.notifySuspiciousAttempt(
+                new SuspiciousAuthAttempt(
+                    user.getUsername(),
+                    oldEmail,
+                    "Email address changed from " + oldEmail + " to " + request.email(),
+                    "unknown",
+                    "unknown",
+                    LocalDateTime.now()
+                )
+            );
         }
 
         if (request.username() != null && !request.username().isBlank()) {
