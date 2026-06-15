@@ -44,7 +44,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(EncryptionException.class)
     public ResponseEntity<Map<String, String>> handleEncryption(EncryptionException ex) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", ex.getMessage()));
+        // V13.4.2 — Do not leak internal encryption error details
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "An internal error occurred"));
     }
 
     @ExceptionHandler(InvalidTokenException.class)
