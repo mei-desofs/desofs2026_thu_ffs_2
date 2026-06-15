@@ -61,9 +61,14 @@ public class AuthService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     public AuthResponse register(RegisterRequest request, String ipAddress, String userAgent) {
-        if (userRepository.findByEmail(request.email()).isPresent() ||
-            userRepository.findByUsername(request.username()).isPresent()) {
-            throw new IllegalArgumentException("Username or Email already in use");
+        boolean emailExists = userRepository.findByEmail(request.email()).isPresent();
+        boolean usernameExists = userRepository.findByUsername(request.username()).isPresent();
+
+        if (emailExists || usernameExists) {
+            String reason = emailExists ? "Email already in use" : "Username already in use";
+            auditService.log(AuditAction.REGISTER, request.username(), "auth",
+                    "Registration failed - " + reason + " - potential enumeration attempt");
+            throw new IllegalArgumentException("Registration failed");
         }
 
         User user = User.builder()
