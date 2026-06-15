@@ -2,6 +2,8 @@ package com.kryptos.audit.application;
 
 import com.kryptos.audit.domain.AuditLog;
 import com.kryptos.audit.domain.AuditLogRepository;
+import com.kryptos.shared.dataprotection.DataClassificationService;
+import com.kryptos.shared.dataprotection.SensitiveDataElement;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -22,6 +24,9 @@ class AuditServiceTest {
 
     @Mock
     private LogForwardingService logForwardingService;
+
+    @Mock
+    private DataClassificationService dataClassificationService;
 
     @InjectMocks
     private AuditService auditService;
@@ -107,4 +112,37 @@ class AuditServiceTest {
         assertEquals("", captor.getValue().getDetails());
     }
 
+    @Test
+    void logSensitive_shouldSanitizeConfidentialData() {
+        when(auditLogRepository.findFirstByOrderByTimestampDesc()).thenReturn(Optional.empty());
+        when(dataClassificationService.sanitizeForLogging("plaintext-token-123", SensitiveDataElement.JWT_TOKEN))
+                .thenReturn("pl****23");
+
+        auditService.logSensitive("LOGIN", "user1", "auth",
+                "plaintext-token-123", SensitiveDataElement.JWT_TOKEN);
+
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(captor.capture());
+
+        AuditLog saved = captor.getValue();
+        assertEquals("pl****23", saved.getDetails());
+        assertEquals("LOGIN", saved.getAction());
+        assertEquals("user1", saved.getPerformedBy());
+    }
+
+    @Test
+    void logSensitive_shouldRedactRestrictedData() {
+        when(auditLogRepository.findFirstByOrderByTimestampDesc()).thenReturn(Optional.empty());
+        when(dataClassificationService.sanitizeForLogging("super-secret-key", SensitiveDataElement.ENCRYPTION_SECRET))
+                .thenReturn("[REDACTED]");
+
+        auditService.logSensitive("CONFIG_CHANGE", "admin", "encryption",
+                "super-secret-key", SensitiveDataElement.ENCRYPTION_SECRET);
+
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(captor.capture());
+
+        AuditLog saved = captor.getValue();
+        assertEquals("[REDACTED]", saved.getDetails());
+    }
 }

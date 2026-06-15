@@ -2,6 +2,8 @@ package com.kryptos.audit.application;
 
 import com.kryptos.audit.domain.AuditLog;
 import com.kryptos.audit.domain.AuditLogRepository;
+import com.kryptos.shared.dataprotection.DataClassificationService;
+import com.kryptos.shared.dataprotection.SensitiveDataElement;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,7 @@ public class AuditService {
 
     private final AuditLogRepository auditLogRepository;
     private final LogForwardingService logForwardingService;
+    private final DataClassificationService dataClassificationService;
 
     @Transactional
     public void log(String action, String performedBy, String targetResource, String details) {
@@ -43,6 +46,13 @@ public class AuditService {
         AuditLog savedEntry = auditLogRepository.save(entry);
 
         logForwardingService.forwardLog(savedEntry);
+    }
+
+    @Transactional
+    public void logSensitive(String action, String performedBy, String targetResource,
+                              String details, SensitiveDataElement element) {
+        String sanitized = dataClassificationService.sanitizeForLogging(details, element);
+        log(action, performedBy, targetResource, sanitized);
     }
 
     private String computeHash(String action, String performedBy, String targetResource,

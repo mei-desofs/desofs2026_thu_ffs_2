@@ -218,4 +218,50 @@ class DataClassificationServiceTest {
         assertEquals("Test", req.category());
         assertEquals("Description", req.requirement());
     }
+
+    @Test
+    void sanitizeForLogging_shouldReturnValueUnchanged_forPublicData() {
+        String result = service.sanitizeForLogging("visible data", SensitiveDataElement.CREDENTIAL_SERVICE_NAME);
+        assertEquals("visible data", result);
+    }
+
+    @Test
+    void sanitizeForLogging_shouldReturnValueUnchanged_forInternalData() {
+        String result = service.sanitizeForLogging("user@example.com", SensitiveDataElement.USER_EMAIL);
+        assertEquals("user@example.com", result);
+    }
+
+    @Test
+    void sanitizeForLogging_shouldMaskConfidentialData() {
+        String result = service.sanitizeForLogging("my-secret-token-123", SensitiveDataElement.JWT_TOKEN);
+        assertEquals("my****23", result);
+    }
+
+    @Test
+    void sanitizeForLogging_shouldMaskShortConfidentialData() {
+        String result = service.sanitizeForLogging("abcd", SensitiveDataElement.JWT_TOKEN);
+        assertEquals("****", result);
+    }
+
+    @Test
+    void sanitizeForLogging_shouldRedactRestrictedData() {
+        String result = service.sanitizeForLogging("super-secret-key", SensitiveDataElement.ENCRYPTION_SECRET);
+        assertEquals("[REDACTED]", result);
+    }
+
+    @Test
+    void sanitizeForLogging_shouldHandleNullValue() {
+        String result = service.sanitizeForLogging(null, SensitiveDataElement.ENCRYPTION_SECRET);
+        assertNull(result);
+    }
+
+    @Test
+    void getLoggingProtection_shouldReturnClassification() {
+        assertEquals(DataClassification.CONFIDENTIAL,
+                service.getLoggingProtection(DataClassification.CONFIDENTIAL));
+        assertEquals(DataClassification.RESTRICTED,
+                service.getLoggingProtection(DataClassification.RESTRICTED));
+        assertEquals(DataClassification.PUBLIC,
+                service.getLoggingProtection(DataClassification.PUBLIC));
+    }
 }
