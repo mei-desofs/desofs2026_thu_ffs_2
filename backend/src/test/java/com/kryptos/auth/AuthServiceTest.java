@@ -76,7 +76,7 @@ class AuthServiceTest {
 
     @Test
     void register_shouldReturnToken_whenValidRequest() {
-        RegisterRequest request = new RegisterRequest("UserTest", "test@kryptos.com", "password123");
+        RegisterRequest request = new RegisterRequest("UserTest", "test@kryptos.com", "SecurePass2026!");
 
         when(userRepository.findByEmail(request.email())).thenReturn(Optional.empty());
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.empty());
@@ -96,16 +96,17 @@ class AuthServiceTest {
 
     @Test
     void register_shouldThrowException_whenUsernameOrEmailExists() {
-        RegisterRequest request = new RegisterRequest("UserTest", "test@kryptos.com", "password123");
+        RegisterRequest request = new RegisterRequest("UserTest", "test@kryptos.com", "SecurePass2026!");
         when(userRepository.findByEmail(request.email())).thenReturn(Optional.of(testUser));
 
         assertThrows(IllegalArgumentException.class, () -> authService.register(request, "127.0.0.1", "TestAgent"));
         verify(userRepository, never()).save(any(User.class));
+        verify(userRepository).findByEmail(request.email());
     }
 
     @Test
     void login_shouldReturnToken_whenValidCredentials_and2faDisabled() {
-        LoginRequest request = new LoginRequest("UserTest", "password123");
+        LoginRequest request = new LoginRequest("UserTest", "SecurePass2026!");
 
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
         when(jwtService.generateToken("UserTest", "USER", "127.0.0.1", "TestAgent")).thenReturn("mock.jwt.token");
@@ -123,7 +124,7 @@ class AuthServiceTest {
     @Test
     void login_shouldReturn2faRequired_when2faEnabled() {
         testUser.setTwoFaEnabled(true);
-        LoginRequest request = new LoginRequest("UserTest", "password123");
+        LoginRequest request = new LoginRequest("UserTest", "SecurePass2026!");
 
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
 
@@ -223,13 +224,14 @@ class AuthServiceTest {
         testUser.setResetTokenExpiresAt(LocalDateTime.now().plusMinutes(15));
         testUser.addToPasswordHistory(oldPasswordHash);
 
-        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "SamePassword123!");
+        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "ValidPass456!");
 
         when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.matches("SamePassword123!", oldPasswordHash)).thenReturn(true);
+        when(passwordEncoder.matches("ValidPass456!", oldPasswordHash)).thenReturn(true);
 
         assertThrows(IllegalArgumentException.class,
                 () -> authService.confirmPasswordReset(confirm));
+        verify(passwordEncoder).matches("ValidPass456!", oldPasswordHash);
     }
 
     @Test
@@ -239,10 +241,10 @@ class AuthServiceTest {
         testUser.setResetTokenExpiresAt(LocalDateTime.now().plusMinutes(15));
         testUser.setPassword("old_hash");
 
-        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "NewPassword123!");
+        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "NewSecure789!");
 
         when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.encode("NewPassword123!")).thenReturn("new_hash");
+        when(passwordEncoder.encode("NewSecure789!")).thenReturn("new_hash");
 
         authService.confirmPasswordReset(confirm);
 
@@ -254,7 +256,7 @@ class AuthServiceTest {
     @Test
     void login_shouldBlockAccess_whenAccountLockedUntilAdmin() {
         testUser.setAccountLockedUntilAdmin(true);
-        LoginRequest request = new LoginRequest("UserTest", "password123");
+        LoginRequest request = new LoginRequest("UserTest", "SecurePass2026!");
 
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
 
@@ -289,7 +291,7 @@ class AuthServiceTest {
         testUser.setResetToken(resetToken);
         testUser.setResetTokenExpiresAt(java.time.LocalDateTime.now().minusMinutes(1));
 
-        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "NewPassword123!");
+        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "NewSecure789!");
 
         when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.of(testUser));
 
@@ -302,7 +304,7 @@ class AuthServiceTest {
 
         when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.empty());
 
-        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "NewPassword123!");
+        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "NewSecure789!");
 
         assertThrows(InvalidTokenException.class, () -> authService.confirmPasswordReset(confirm));
     }
@@ -327,35 +329,39 @@ class AuthServiceTest {
         testUser.setResetTokenExpiresAt(java.time.LocalDateTime.now().plusMinutes(15));
         testUser.addToPasswordHistory(oldPasswordHash);
 
-        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "OldPassword123");
+        PasswordResetConfirm confirm = new PasswordResetConfirm(resetToken, "StrongPass321!");
 
         when(userRepository.findByResetToken(resetToken)).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.matches("OldPassword123", oldPasswordHash)).thenReturn(true);
+        when(passwordEncoder.matches("StrongPass321!", oldPasswordHash)).thenReturn(true);
 
         assertThrows(IllegalArgumentException.class,
                 () -> authService.confirmPasswordReset(confirm),
                 "Should not allow reusing old passwords");
+        verify(passwordEncoder).matches("StrongPass321!", oldPasswordHash);
     }
 
     @Test
     void register_shouldThrow_whenEmailAlreadyExists() {
-        RegisterRequest request = new RegisterRequest("NewUser", "test@kryptos.com", "password123");
+        RegisterRequest request = new RegisterRequest("NewUser", "test@kryptos.com", "SecurePass2026!");
 
         when(userRepository.findByEmail(request.email())).thenReturn(Optional.of(testUser));
 
         assertThrows(IllegalArgumentException.class, () -> authService.register(request, "127.0.0.1", "TestAgent"));
         verify(userRepository, never()).save(any(User.class));
+        verify(userRepository).findByEmail(request.email());
     }
 
     @Test
     void register_shouldThrow_whenUsernameAlreadyExists() {
-        RegisterRequest request = new RegisterRequest("UserTest", "new@kryptos.com", "password123");
+        RegisterRequest request = new RegisterRequest("UserTest", "new@kryptos.com", "SecurePass2026!");
 
         when(userRepository.findByEmail(request.email())).thenReturn(Optional.empty());
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
 
         assertThrows(IllegalArgumentException.class, () -> authService.register(request, "127.0.0.1", "TestAgent"));
         verify(userRepository, never()).save(any(User.class));
+        verify(userRepository).findByEmail(request.email());
+        verify(userRepository).findByUsername(request.username());
     }
 
     @Test
