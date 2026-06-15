@@ -3,6 +3,7 @@ package com.kryptos.user.application;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.shared.exception.ForbiddenException;
 import com.kryptos.shared.exception.ResourceNotFoundException;
+import com.kryptos.shared.security.JwtService;
 import com.kryptos.user.application.dto.UpdateUserRequest;
 import com.kryptos.user.application.dto.UserResponse;
 import com.kryptos.user.domain.Role;
@@ -26,7 +28,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final AuditService auditService;
-    private final com.kryptos.shared.security.JwtService jwtService;
+    private final JwtService jwtService;
 
     public List<UserResponse> findAll() {
         return userRepository.findAll().stream()
@@ -53,6 +55,7 @@ public class UserService {
         String targetUsername = user.getUsername();
 
         user.setActive(false);
+        user.setSessionTokenValidAfter(LocalDateTime.now());
         userRepository.save(user);
 
         auditService.log(AuditAction.USER_DELETE, adminUsername, "user",
@@ -111,7 +114,7 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         
-        user.setSessionTokenValidAfter(java.time.LocalDateTime.now());
+        user.setSessionTokenValidAfter(LocalDateTime.now());
         userRepository.save(user);
 
         String adminUsername = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -121,7 +124,7 @@ public class UserService {
 
     @Transactional
     public void terminateAllSessions() {
-        userRepository.terminateAllSessions(java.time.LocalDateTime.now());
+        userRepository.terminateAllSessions(LocalDateTime.now());
         
         String adminUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         auditService.log(AuditAction.LOGOUT, adminUsername, "user",

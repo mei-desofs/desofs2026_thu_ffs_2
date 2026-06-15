@@ -9,6 +9,19 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Date;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import com.kryptos.shared.exception.ReauthenticationRequiredException;
+import com.kryptos.user.domain.User;
 
 @ExtendWith(MockitoExtension.class)
 class JwtServiceTest {
@@ -30,9 +43,9 @@ class JwtServiceTest {
 
     private KryptosUserDetails createMockUserDetails(String username) {
         if (username == null) return null;
-        com.kryptos.user.domain.User user = new com.kryptos.user.domain.User();
+        User user = new User();
         user.setUsername(username);
-        user.setSessionTokenValidAfter(java.time.LocalDateTime.now().minusDays(1));
+        user.setSessionTokenValidAfter(LocalDateTime.now().minusDays(1));
         return new KryptosUserDetails(user);
     }
 
@@ -96,5 +109,45 @@ class JwtServiceTest {
         ReflectionTestUtils.setField(shortSecretService, "expiration", TEST_EXPIRATION);
         assertThrows(IllegalStateException.class,
                 () -> shortSecretService.generateToken("user", "USER"));
+    }
+
+    @Test
+    void extractIssuedAt_shouldReturnCorrectDate() {
+        String token = jwtService.generateToken("testuser", "USER");
+        Date issuedAt = jwtService.extractIssuedAt(token);
+        assertNotNull(issuedAt);
+    }
+
+    @Test
+    void requireRecentAuthentication_shouldPass_whenTokenRecent() {
+        String token = jwtService.generateToken("testuser", "USER");
+        Authentication auth = mock(Authentication.class);
+        when(auth.getCredentials()).thenReturn(token);
+        SecurityContext ctx = mock(SecurityContext.class);
+        when(ctx.getAuthentication()).thenReturn(auth);
+        SecurityContextHolder.setContext(ctx);
+
+        assertDoesNotThrow(() -> jwtService.requireRecentAuthentication());
+    }
+
+    @Test
+    void requireRecentAuthentication_shouldThrow_whenTokenStale() {
+        Date oldDate = Date.from(Instant.now().minusSeconds(400));
+        String token = io.jsonwebtoken.Jwts.builder()
+                .subject("testuser")
+                .audience().add("kryptos").and()
+                .issuedAt(oldDate)
+                .expiration(new Date(oldDate.getTime() + TEST_EXPIRATION))
+                .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(TEST_SECRET.getBytes(StandardCharsets.UTF_8)), io.jsonwebtoken.Jwts.SIG.HS256)
+                .compact();
+
+        Authentication auth = mock(Authentication.class);
+        when(auth.getCredentials()).thenReturn(token);
+        SecurityContext ctx = mock(SecurityContext.class);
+        when(ctx.getAuthentication()).thenReturn(auth);
+        SecurityContextHolder.setContext(ctx);
+
+        assertThrows(ReauthenticationRequiredException.class, 
+            () -> jwtService.requireRecentAuthentication());
     }
 }

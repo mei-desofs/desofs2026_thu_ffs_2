@@ -13,7 +13,11 @@ import java.util.function.Function;
 import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
+import com.kryptos.shared.exception.ReauthenticationRequiredException;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -58,13 +62,13 @@ public class JwtService {
     }
 
     public void requireRecentAuthentication() {
-        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getCredentials() instanceof String token)) {
-            throw new com.kryptos.shared.exception.ReauthenticationRequiredException("Re-authentication missing.");
+            throw new ReauthenticationRequiredException("Re-authentication missing.");
         }
         Date issuedAt = extractIssuedAt(token);
         if (issuedAt == null || issuedAt.toInstant().isBefore(Instant.now().minusSeconds(300))) {
-            throw new com.kryptos.shared.exception.ReauthenticationRequiredException("Re-authentication required for sensitive operations.");
+            throw new ReauthenticationRequiredException("Re-authentication required for sensitive operations.");
         }
     }
 
