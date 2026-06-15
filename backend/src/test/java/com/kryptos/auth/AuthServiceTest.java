@@ -40,7 +40,9 @@ import com.kryptos.shared.email.EmailService;
 import com.kryptos.shared.exception.InvalidTokenException;
 import com.kryptos.shared.exception.RateLimitExceededException;
 import com.kryptos.shared.security.JwtService;
-import com.kryptos.auth.application.dto.PasswordResetConfirm;
+import com.kryptos.auth.application.dto.PasswordResetRequest;
+import com.kryptos.shared.exception.ReauthenticationRequiredException;
+import com.kryptos.shared.exception.ResourceNotFoundException;
 import com.kryptos.user.domain.Role;
 import com.kryptos.user.domain.User;
 import com.kryptos.user.domain.UserRepository;
@@ -266,8 +268,7 @@ class AuthServiceTest {
     @Test
     void requestPasswordReset_shouldThrow_whenTooManyAttempts() {
         String email = "test@kryptos.com";
-        com.kryptos.auth.application.dto.PasswordResetRequest request =
-                new com.kryptos.auth.application.dto.PasswordResetRequest(email);
+        PasswordResetRequest request = new PasswordResetRequest(email);
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(testUser));
 
@@ -309,12 +310,11 @@ class AuthServiceTest {
     @Test
     void requestPasswordReset_shouldThrow_whenUserNotFound() {
         String email = "nonexistent@kryptos.com";
-        com.kryptos.auth.application.dto.PasswordResetRequest request =
-                new com.kryptos.auth.application.dto.PasswordResetRequest(email);
+        PasswordResetRequest request = new PasswordResetRequest(email);
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
 
-        assertThrows(com.kryptos.shared.exception.ResourceNotFoundException.class,
+        assertThrows(ResourceNotFoundException.class,
                 () -> authService.requestPasswordReset(request));
     }
 
@@ -356,5 +356,23 @@ class AuthServiceTest {
 
         assertThrows(IllegalArgumentException.class, () -> authService.register(request));
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void enableTwoFa_shouldThrowReauthenticationRequiredException_whenTokenIsStale() {
+        org.mockito.Mockito.doThrow(new ReauthenticationRequiredException("Stale token"))
+                .when(jwtService).requireRecentAuthentication();
+
+        assertThrows(ReauthenticationRequiredException.class,
+                () -> authService.enableTwoFa("UserTest"));
+    }
+
+    @Test
+    void disableTwoFa_shouldThrowReauthenticationRequiredException_whenTokenIsStale() {
+        org.mockito.Mockito.doThrow(new ReauthenticationRequiredException("Stale token"))
+                .when(jwtService).requireRecentAuthentication();
+
+        assertThrows(ReauthenticationRequiredException.class,
+                () -> authService.disableTwoFa("UserTest"));
     }
 }

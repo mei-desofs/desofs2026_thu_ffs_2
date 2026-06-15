@@ -13,7 +13,11 @@ import java.util.function.Function;
 import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
+import com.kryptos.shared.exception.ReauthenticationRequiredException;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -53,13 +57,40 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public boolean isTokenValid(String token, String username) {
+    public Date extractIssuedAt(String token) {
+        return extractClaim(token, Claims::getIssuedAt);
+    }
+
+    public void requireRecentAuthentication() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getCredentials() instanceof String token)) {
+            throw new ReauthenticationRequiredException("Re-authentication missing.");
+        }
+        Date issuedAt = extractIssuedAt(token);
+        if (issuedAt == null || issuedAt.toInstant().isBefore(Instant.now().minusSeconds(300))) {
+            throw new ReauthenticationRequiredException("Re-authentication required for sensitive operations.");
+        }
+    }
+
+    public boolean isTokenValid(String token, KryptosUserDetails userDetails) {
         try {
             String tokenUsername = extractUsername(token);
-            return username != null
-                    && username.equals(tokenUsername)
-                    && !isTokenExpired(token)
-                    && !isTokenRevoked(token);
+            if (userDetails == null || !userDetails.getUsername().equals(tokenUsername)) {
+                return false;
+            }
+            if (isTokenExpired(token) || isTokenRevoked(token)) {
+                return false;
+            }
+            
+            Date issuedAt = extractClaim(token, Claims::getIssuedAt);
+            if (userDetails.getSessionTokenValidAfter() != null && issuedAt != null) {
+                Date validAfter = Date.from(userDetails.getSessionTokenValidAfter().atZone(ZoneId.systemDefault()).toInstant());
+                if (issuedAt.before(validAfter)) {
+                    return false;
+                }
+            }
+            
+            return true;
         } catch (JwtException | IllegalArgumentException ex) {
             return false;
         }

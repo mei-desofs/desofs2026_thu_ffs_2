@@ -59,6 +59,10 @@ public class User implements Serializable {
     @Column(name = "account_locked_until_admin")
     private boolean accountLockedUntilAdmin;
 
+    @Column(name = "session_token_valid_after")
+    @Builder.Default
+    private LocalDateTime sessionTokenValidAfter = LocalDateTime.now();
+
     public List<String> getPasswordHistoryList() {
         if (passwordHistory == null || passwordHistory.isEmpty()) {
             return new ArrayList<>();

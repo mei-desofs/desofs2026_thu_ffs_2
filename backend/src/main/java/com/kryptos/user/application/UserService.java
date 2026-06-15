@@ -3,6 +3,7 @@ package com.kryptos.user.application;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.shared.exception.ForbiddenException;
 import com.kryptos.shared.exception.ResourceNotFoundException;
+import com.kryptos.shared.security.JwtService;
 import com.kryptos.user.application.dto.UpdateUserRequest;
 import com.kryptos.user.application.dto.UserResponse;
 import com.kryptos.user.domain.Role;
@@ -26,6 +28,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final JwtService jwtService;
 
     public List<UserResponse> findAll() {
         return userRepository.findAll().stream()
@@ -52,6 +55,7 @@ public class UserService {
         String targetUsername = user.getUsername();
 
         user.setActive(false);
+        user.setSessionTokenValidAfter(LocalDateTime.now());
         userRepository.save(user);
 
         auditService.log(AuditAction.USER_DELETE, adminUsername, "user",
@@ -80,6 +84,7 @@ public class UserService {
 
     @Transactional
     public UserResponse update(UUID userId, UpdateUserRequest request, String currentUsername, boolean isAdmin) {
+        jwtService.requireRecentAuthentication();
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -102,6 +107,28 @@ public class UserService {
                 String.format("Updated profile for user %s", userId));
 
         return mapToResponse(userRepository.save(user));
+    }
+
+    @Transactional
+    public void terminateUserSessions(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        
+        user.setSessionTokenValidAfter(LocalDateTime.now());
+        userRepository.save(user);
+
+        String adminUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditService.log(AuditAction.LOGOUT, adminUsername, "user",
+                "Terminated all active sessions for user: " + user.getUsername());
+    }
+
+    @Transactional
+    public void terminateAllSessions() {
+        userRepository.terminateAllSessions(LocalDateTime.now());
+        
+        String adminUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditService.log(AuditAction.LOGOUT, adminUsername, "user",
+                "Terminated all active sessions for ALL users globally (Panic Button)");
     }
 
     private UserResponse mapToResponse(User user) {

@@ -23,6 +23,8 @@ import com.kryptos.auth.application.dto.RegisterRequest;
 import com.kryptos.auth.application.dto.TwoFaVerifyRequest;
 import com.kryptos.shared.email.EmailService;
 import com.kryptos.shared.exception.InvalidTokenException;
+import com.kryptos.shared.exception.RateLimitExceededException;
+import com.kryptos.shared.exception.ResourceNotFoundException;
 import com.kryptos.shared.security.JwtService;
 import com.kryptos.user.domain.Role;
 import com.kryptos.user.domain.User;
@@ -70,6 +72,7 @@ public class AuthService {
                 .active(true)
                 .build();
 
+        user.setSessionTokenValidAfter(LocalDateTime.now().minusSeconds(1));
         userRepository.save(user);
 
         String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
@@ -91,13 +94,13 @@ public class AuthService {
         if (userOpt != null && userOpt.isAccountLockedUntilAdmin()) {
             auditService.log(AuditAction.LOGIN_FAILED, cacheKey, "auth",
                     "Login blocked - account locked by admin");
-            throw new com.kryptos.shared.exception.RateLimitExceededException("Account locked. Contact administrator.");
+            throw new RateLimitExceededException("Account locked. Contact administrator.");
         }
 
         if (lockouts.containsKey(cacheKey) && lockouts.get(cacheKey).isAfter(Instant.now())) {
             auditService.log(AuditAction.LOGIN_FAILED, cacheKey, "auth",
                     "Login blocked - account locked due to " + MAX_ATTEMPTS + " failed attempts");
-            throw new com.kryptos.shared.exception.RateLimitExceededException("Too many failed attempts. Try again later.");
+            throw new RateLimitExceededException("Too many failed attempts. Try again later.");
         }
 
         try {
@@ -116,6 +119,8 @@ public class AuthService {
                 return LoginResponse.twoFaRequired(user.getUsername());
             }
 
+            user.setSessionTokenValidAfter(LocalDateTime.now().minusSeconds(1));
+            userRepository.save(user);
             String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
             auditService.log(AuditAction.LOGIN, cacheKey, "auth", "User logged in");
             return LoginResponse.authenticated(jwtToken, user.getUsername(), user.getRole().name());
@@ -145,7 +150,7 @@ public class AuthService {
         if (attempts >= MAX_2FA_ATTEMPTS) {
             auditService.log(AuditAction.LOGIN_FAILED, user.getUsername(), "auth",
                     "2FA verification blocked - too many attempts");
-            throw new com.kryptos.shared.exception.RateLimitExceededException(
+            throw new RateLimitExceededException(
                     "Too many 2FA attempts. Request a new code.");
         }
 
@@ -170,6 +175,7 @@ public class AuthService {
         // Code is valid — clear it and issue token
         user.setTwoFaCode(null);
         user.setTwoFaCodeExpiresAt(null);
+        user.setSessionTokenValidAfter(LocalDateTime.now().minusSeconds(1));
         userRepository.save(user);
         twoFaAttempts.remove(user.getUsername());
 
@@ -179,8 +185,10 @@ public class AuthService {
         return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
     }
 
+
     @Transactional
     public void enableTwoFa(String username) {
+        jwtService.requireRecentAuthentication();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -195,6 +203,7 @@ public class AuthService {
 
     @Transactional
     public void disableTwoFa(String username) {
+        jwtService.requireRecentAuthentication();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -242,12 +251,12 @@ public class AuthService {
         if (isResetLocked(email)) {
             auditService.log(AuditAction.PASSWORD_RESET_REQUESTED, email, "auth",
                     "Password reset blocked - too many attempts");
-            throw new com.kryptos.shared.exception.RateLimitExceededException(
+            throw new RateLimitExceededException(
                     "Too many password reset requests. Try again later.");
         }
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new com.kryptos.shared.exception.ResourceNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                     "User with email " + email + " not found"));
 
         int attempts = resetAttempts.getOrDefault(email, 0) + 1;

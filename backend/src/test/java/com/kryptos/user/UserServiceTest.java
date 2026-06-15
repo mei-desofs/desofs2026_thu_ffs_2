@@ -27,7 +27,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import com.kryptos.audit.application.AuditService;
 import com.kryptos.audit.domain.AuditAction;
 import com.kryptos.shared.exception.ForbiddenException;
+import com.kryptos.shared.exception.ReauthenticationRequiredException;
 import com.kryptos.shared.exception.ResourceNotFoundException;
+import com.kryptos.shared.security.JwtService;
 import com.kryptos.user.application.UserService;
 import com.kryptos.user.application.dto.UpdateUserRequest;
 import com.kryptos.user.application.dto.UserResponse;
@@ -40,6 +42,7 @@ class UserServiceTest {
 
     @Mock private UserRepository userRepository;
     @Mock private AuditService auditService; // 1. Adicionado o mock do AuditService
+    @Mock private JwtService jwtService;
 
     @InjectMocks
     private UserService userService;
@@ -203,5 +206,47 @@ class UserServiceTest {
 
         assertNotNull(response);
         verify(userRepository).save(targetUser);
+    }
+
+    @Test
+    void deleteById_shouldSoftDeleteUserAndInvalidateSession() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+
+        userService.deleteById(targetUserId);
+
+        assertFalse(targetUser.isActive());
+        assertNotNull(targetUser.getSessionTokenValidAfter());
+        verify(userRepository).save(targetUser);
+        verify(auditService).log(eq(AuditAction.USER_DELETE), eq("admin_user"), eq("user"), any());
+    }
+
+    @Test
+    void terminateUserSessions_shouldUpdateSessionTokenValidAfter() {
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+
+        userService.terminateUserSessions(targetUserId);
+
+        assertNotNull(targetUser.getSessionTokenValidAfter());
+        verify(userRepository).save(targetUser);
+        verify(auditService).log(eq(AuditAction.LOGOUT), eq("admin_user"), eq("user"), any());
+    }
+
+    @Test
+    void terminateAllSessions_shouldCallRepository() {
+        userService.terminateAllSessions();
+
+        verify(userRepository).terminateAllSessions(any());
+        verify(auditService).log(eq(AuditAction.LOGOUT), eq("admin_user"), eq("user"), any());
+    }
+
+    @Test
+    void update_shouldThrowReauthenticationRequiredException_whenTokenIsStale() {
+        org.mockito.Mockito.doThrow(new ReauthenticationRequiredException("Stale token"))
+                .when(jwtService).requireRecentAuthentication();
+
+        UpdateUserRequest request = new UpdateUserRequest("newemail@example.com", "newusername");
+
+        assertThrows(ReauthenticationRequiredException.class,
+                () -> userService.update(targetUserId, request, "targetuser", false));
     }
 }
