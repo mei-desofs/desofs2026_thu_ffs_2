@@ -26,6 +26,7 @@ import com.kryptos.shared.exception.InvalidTokenException;
 import com.kryptos.shared.exception.RateLimitExceededException;
 import com.kryptos.shared.exception.ResourceNotFoundException;
 import com.kryptos.shared.security.JwtService;
+import com.kryptos.trusteddevice.domain.TrustedDeviceRepository;
 import com.kryptos.user.domain.Role;
 import com.kryptos.user.domain.User;
 import com.kryptos.user.domain.UserRepository;
@@ -42,6 +43,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final AuditService auditService;
     private final EmailService emailService;
+    private final TrustedDeviceRepository trustedDeviceRepository;
 
     private final ConcurrentHashMap<String, Integer> loginAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> lockouts = new ConcurrentHashMap<>();
@@ -58,7 +60,7 @@ public class AuthService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    public AuthResponse register(RegisterRequest request) {
+    public AuthResponse register(RegisterRequest request, String ipAddress, String userAgent) {
         if (userRepository.findByEmail(request.email()).isPresent() ||
             userRepository.findByUsername(request.username()).isPresent()) {
             throw new IllegalArgumentException("Username or Email already in use");
@@ -75,14 +77,14 @@ public class AuthService {
         user.setSessionTokenValidAfter(LocalDateTime.now().minusSeconds(1));
         userRepository.save(user);
 
-        String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
+        String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name(), ipAddress, userAgent);
 
         auditService.log(AuditAction.REGISTER, request.username(), "auth", "User registered");
 
         return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
     }
 
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, String deviceFingerprint, String ipAddress, String userAgent) {
         String providedId = request.username();
 
         String cacheKey = userRepository.findByUsername(providedId)
@@ -114,14 +116,26 @@ public class AuthService {
             var user = userRepository.findByUsername(cacheKey).orElseThrow();
 
             if (user.isTwoFaEnabled()) {
-                sendTwoFaCode(user);
-                auditService.log(AuditAction.LOGIN, cacheKey, "auth", "Password valid, 2FA code sent");
-                return LoginResponse.twoFaRequired(user.getUsername());
+                boolean isTrustedDevice = false;
+                if (deviceFingerprint != null && !deviceFingerprint.isBlank()) {
+                    isTrustedDevice = trustedDeviceRepository.findByDeviceFingerprint(deviceFingerprint)
+                            .map(device -> device.getUser().getId().equals(user.getId()) && device.isActive())
+                            .orElse(false);
+                }
+
+                if (isTrustedDevice) {
+                    auditService.log(AuditAction.LOGIN, cacheKey, "auth",
+                        "Adaptive Auth: 2FA bypassed for known Trusted Device (" + deviceFingerprint + ")");
+                } else {
+                    sendTwoFaCode(user);
+                    auditService.log(AuditAction.LOGIN, cacheKey, "auth", "Password valid, 2FA code sent for untrusted device");
+                    return LoginResponse.twoFaRequired(user.getUsername());
+                }
             }
 
             user.setSessionTokenValidAfter(LocalDateTime.now().minusSeconds(1));
             userRepository.save(user);
-            String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
+            String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name(), ipAddress, userAgent);
             auditService.log(AuditAction.LOGIN, cacheKey, "auth", "User logged in");
             return LoginResponse.authenticated(jwtToken, user.getUsername(), user.getRole().name());
 
@@ -142,7 +156,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse verifyTwoFaCode(TwoFaVerifyRequest request) {
+    public AuthResponse verifyTwoFaCode(TwoFaVerifyRequest request, String ipAddress, String userAgent) {
         User user = userRepository.findByUsername(request.username())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
 
@@ -179,7 +193,7 @@ public class AuthService {
         userRepository.save(user);
         twoFaAttempts.remove(user.getUsername());
 
-        String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
+        String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name(), ipAddress, userAgent);
         auditService.log(AuditAction.LOGIN, user.getUsername(), "auth", "2FA verified, user logged in");
 
         return new AuthResponse(jwtToken, user.getUsername(), user.getRole().name());
@@ -302,6 +316,7 @@ public class AuthService {
         user.setPassword(encodedPassword);
         user.setResetToken(null);
         user.setResetTokenExpiresAt(null);
+        user.setSessionTokenValidAfter(LocalDateTime.now()); // V8.3.2 Fix: Invalidate all sessions
         resetFailures.remove(user.getUsername());
         userRepository.save(user);
 

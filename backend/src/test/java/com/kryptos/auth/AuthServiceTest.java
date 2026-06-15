@@ -81,9 +81,9 @@ class AuthServiceTest {
         when(userRepository.findByEmail(request.email())).thenReturn(Optional.empty());
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.empty());
         when(passwordEncoder.encode(request.password())).thenReturn("encoded_password");
-        when(jwtService.generateToken(anyString(), anyString())).thenReturn("mock.jwt.token");
+        when(jwtService.generateToken(anyString(), anyString(), anyString(), anyString())).thenReturn("mock.jwt.token");
 
-        AuthResponse response = authService.register(request);
+        AuthResponse response = authService.register(request, "127.0.0.1", "TestAgent");
 
         assertNotNull(response);
         assertEquals("mock.jwt.token", response.token());
@@ -99,7 +99,7 @@ class AuthServiceTest {
         RegisterRequest request = new RegisterRequest("UserTest", "test@kryptos.com", "password123");
         when(userRepository.findByEmail(request.email())).thenReturn(Optional.of(testUser));
 
-        assertThrows(IllegalArgumentException.class, () -> authService.register(request));
+        assertThrows(IllegalArgumentException.class, () -> authService.register(request, "127.0.0.1", "TestAgent"));
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -108,9 +108,9 @@ class AuthServiceTest {
         LoginRequest request = new LoginRequest("UserTest", "password123");
 
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
-        when(jwtService.generateToken("UserTest", "USER")).thenReturn("mock.jwt.token");
+        when(jwtService.generateToken("UserTest", "USER", "127.0.0.1", "TestAgent")).thenReturn("mock.jwt.token");
 
-        LoginResponse response = authService.login(request);
+        LoginResponse response = authService.login(request, null, "127.0.0.1", "TestAgent");
 
         assertNotNull(response);
         assertEquals("authenticated", response.status());
@@ -127,7 +127,7 @@ class AuthServiceTest {
 
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
 
-        LoginResponse response = authService.login(request);
+        LoginResponse response = authService.login(request, null, "127.0.0.1", "TestAgent");
 
         assertEquals("2fa_required", response.status());
         assertNull(response.token());
@@ -146,9 +146,9 @@ class AuthServiceTest {
         TwoFaVerifyRequest request = new TwoFaVerifyRequest("UserTest", "123456");
 
         when(userRepository.findByUsername("UserTest")).thenReturn(Optional.of(testUser));
-        when(jwtService.generateToken("UserTest", "USER")).thenReturn("mock.jwt.token");
+        when(jwtService.generateToken("UserTest", "USER", "127.0.0.1", "TestAgent")).thenReturn("mock.jwt.token");
 
-        AuthResponse response = authService.verifyTwoFaCode(request);
+        AuthResponse response = authService.verifyTwoFaCode(request, "127.0.0.1", "TestAgent");
 
         assertEquals("mock.jwt.token", response.token());
         assertNull(testUser.getTwoFaCode());
@@ -166,7 +166,7 @@ class AuthServiceTest {
 
         when(userRepository.findByUsername("UserTest")).thenReturn(Optional.of(testUser));
 
-        assertThrows(IllegalArgumentException.class, () -> authService.verifyTwoFaCode(request));
+        assertThrows(IllegalArgumentException.class, () -> authService.verifyTwoFaCode(request, "127.0.0.1", "TestAgent"));
     }
 
     @Test
@@ -179,7 +179,7 @@ class AuthServiceTest {
 
         when(userRepository.findByUsername("UserTest")).thenReturn(Optional.of(testUser));
 
-        assertThrows(Exception.class, () -> authService.verifyTwoFaCode(request));
+        assertThrows(Exception.class, () -> authService.verifyTwoFaCode(request, "127.0.0.1", "TestAgent"));
     }
 
     @Test
@@ -190,7 +190,7 @@ class AuthServiceTest {
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> authService.login(request));
+                () -> authService.login(request, null, "127.0.0.1", "TestAgent"));
 
         assertEquals("Invalid credentials", ex.getMessage());
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
@@ -205,11 +205,11 @@ class AuthServiceTest {
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
 
         for (int i = 0; i < 5; i++) {
-            assertThrows(IllegalArgumentException.class, () -> authService.login(request));
+            assertThrows(IllegalArgumentException.class, () -> authService.login(request, null, "127.0.0.1", "TestAgent"));
         }
 
         RateLimitExceededException ex = assertThrows(RateLimitExceededException.class,
-                () -> authService.login(request));
+                () -> authService.login(request, null, "127.0.0.1", "TestAgent"));
 
         assertTrue(ex.getMessage().contains("Too many failed attempts"));
         verify(auditService, atLeast(5)).log(eq(AuditAction.LOGIN_FAILED), eq("UserTest"), eq("auth"), any());
@@ -259,7 +259,7 @@ class AuthServiceTest {
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
 
         RateLimitExceededException ex = assertThrows(RateLimitExceededException.class,
-                () -> authService.login(request));
+                () -> authService.login(request, null, "127.0.0.1", "TestAgent"));
 
         assertTrue(ex.getMessage().contains("Account locked"));
         verify(auditService).log(eq(AuditAction.LOGIN_FAILED), eq("UserTest"), eq("auth"), any());
@@ -343,7 +343,7 @@ class AuthServiceTest {
 
         when(userRepository.findByEmail(request.email())).thenReturn(Optional.of(testUser));
 
-        assertThrows(IllegalArgumentException.class, () -> authService.register(request));
+        assertThrows(IllegalArgumentException.class, () -> authService.register(request, "127.0.0.1", "TestAgent"));
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -354,7 +354,7 @@ class AuthServiceTest {
         when(userRepository.findByEmail(request.email())).thenReturn(Optional.empty());
         when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(testUser));
 
-        assertThrows(IllegalArgumentException.class, () -> authService.register(request));
+        assertThrows(IllegalArgumentException.class, () -> authService.register(request, "127.0.0.1", "TestAgent"));
         verify(userRepository, never()).save(any(User.class));
     }
 

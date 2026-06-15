@@ -15,7 +15,9 @@ import com.kryptos.auth.application.dto.LoginRequest;
 import com.kryptos.auth.application.dto.LoginResponse;
 import com.kryptos.auth.application.dto.RegisterRequest;
 import com.kryptos.auth.application.dto.TwoFaVerifyRequest;
+import com.kryptos.shared.util.RequestUtils;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -27,18 +29,27 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.register(request));
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
+        String ip = RequestUtils.extractClientIp(httpRequest);
+        String ua = RequestUtils.extractUserAgent(httpRequest);
+        return ResponseEntity.ok(authService.register(request, ip, ua));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            @RequestHeader(value = "X-Device-Fingerprint", required = false) String deviceFingerprint,
+            HttpServletRequest httpRequest) {
+        String ip = RequestUtils.extractClientIp(httpRequest);
+        String ua = RequestUtils.extractUserAgent(httpRequest);
+        return ResponseEntity.ok(authService.login(request, deviceFingerprint, ip, ua));
     }
 
     @PostMapping("/2fa/verify")
-    public ResponseEntity<AuthResponse> verifyTwoFa(@Valid @RequestBody TwoFaVerifyRequest request) {
-        return ResponseEntity.ok(authService.verifyTwoFaCode(request));
+    public ResponseEntity<AuthResponse> verifyTwoFa(@Valid @RequestBody TwoFaVerifyRequest request, HttpServletRequest httpRequest) {
+        String ip = RequestUtils.extractClientIp(httpRequest);
+        String ua = RequestUtils.extractUserAgent(httpRequest);
+        return ResponseEntity.ok(authService.verifyTwoFaCode(request, ip, ua));
     }
 
     @PostMapping("/2fa/enable")
