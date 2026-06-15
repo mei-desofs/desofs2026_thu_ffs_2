@@ -46,6 +46,7 @@ public class AuthService {
     private final EmailService emailService;
     private final TrustedDeviceRepository trustedDeviceRepository;
     private final SuspiciousAuthNotificationService suspiciousAuthNotificationService;
+    private final AuthExpiryNotificationService authExpiryNotificationService;
 
     private final ConcurrentHashMap<String, Integer> loginAttempts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> lockouts = new ConcurrentHashMap<>();
@@ -146,6 +147,9 @@ public class AuthService {
             userRepository.save(user);
             String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name(), ipAddress, userAgent);
             auditService.log(AuditAction.LOGIN, cacheKey, "auth", "User logged in");
+
+            authExpiryNotificationService.checkAndNotifyExpiringAuthMethods(user);
+
             return LoginResponse.authenticated(jwtToken, user.getUsername(), user.getRole().name());
 
         } catch (Exception e) {
