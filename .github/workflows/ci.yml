@@ -154,7 +154,7 @@ jobs:
     name: DAST (OWASP ZAP Baseline)
     runs-on: ubuntu-latest
     needs: build-and-test
-    if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
+    if: github.ref == 'refs/heads/main' || github.base_ref == 'main' || github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
     permissions:
       contents: read
 
@@ -173,6 +173,7 @@ jobs:
         working-directory: backend
         run: |
           set -e
+          sh scripts/generate-certs.sh
           docker compose up -d --build
           echo "Waiting for backend to become responsive on :8080 ..."
           ready=0

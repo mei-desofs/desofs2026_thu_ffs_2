@@ -12,7 +12,7 @@ services:
     expose:
       - "8080"
     environment:
-      DB_URL: jdbc:postgresql://db:5432/kryptos
+      DB_URL: jdbc:postgresql://db:5432/kryptos?sslmode=verify-full&sslrootcert=/certs/ca.crt&sslcert=/certs/client.crt&sslkey=/certs/client.pk8
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
@@ -21,6 +21,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - ./certs:/certs:ro
 
   db:
     image: postgres:16-alpine
@@ -32,6 +34,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./certs:/certs:ro
+      - ./db/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./db/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    command: >
+      sh -c "cp /certs/server.key /tmp/server.key && chown postgres:postgres /tmp/server.key && chmod 600 /tmp/server.key && exec docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf -c hba_file=/etc/postgresql/pg_hba.conf"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d kryptos"]
       interval: 10s
