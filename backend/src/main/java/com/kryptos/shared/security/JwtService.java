@@ -53,13 +53,25 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public boolean isTokenValid(String token, String username) {
+    public boolean isTokenValid(String token, KryptosUserDetails userDetails) {
         try {
             String tokenUsername = extractUsername(token);
-            return username != null
-                    && username.equals(tokenUsername)
-                    && !isTokenExpired(token)
-                    && !isTokenRevoked(token);
+            if (userDetails == null || !userDetails.getUsername().equals(tokenUsername)) {
+                return false;
+            }
+            if (isTokenExpired(token) || isTokenRevoked(token)) {
+                return false;
+            }
+            
+            Date issuedAt = extractClaim(token, Claims::getIssuedAt);
+            if (userDetails.getSessionTokenValidAfter() != null && issuedAt != null) {
+                Date validAfter = Date.from(userDetails.getSessionTokenValidAfter().atZone(ZoneId.systemDefault()).toInstant());
+                if (issuedAt.before(validAfter)) {
+                    return false;
+                }
+            }
+            
+            return true;
         } catch (JwtException | IllegalArgumentException ex) {
             return false;
         }

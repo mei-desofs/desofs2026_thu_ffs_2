@@ -70,6 +70,7 @@ public class AuthService {
                 .active(true)
                 .build();
 
+        user.setSessionTokenValidAfter(LocalDateTime.now().minusSeconds(1));
         userRepository.save(user);
 
         String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
@@ -116,6 +117,8 @@ public class AuthService {
                 return LoginResponse.twoFaRequired(user.getUsername());
             }
 
+            user.setSessionTokenValidAfter(LocalDateTime.now().minusSeconds(1));
+            userRepository.save(user);
             String jwtToken = jwtService.generateToken(user.getUsername(), user.getRole().name());
             auditService.log(AuditAction.LOGIN, cacheKey, "auth", "User logged in");
             return LoginResponse.authenticated(jwtToken, user.getUsername(), user.getRole().name());
@@ -170,6 +173,7 @@ public class AuthService {
         // Code is valid — clear it and issue token
         user.setTwoFaCode(null);
         user.setTwoFaCodeExpiresAt(null);
+        user.setSessionTokenValidAfter(LocalDateTime.now().minusSeconds(1));
         userRepository.save(user);
         twoFaAttempts.remove(user.getUsername());
 
