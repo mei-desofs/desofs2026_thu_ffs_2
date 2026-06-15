@@ -104,6 +104,28 @@ public class UserService {
         return mapToResponse(userRepository.save(user));
     }
 
+    @Transactional
+    public void terminateUserSessions(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        
+        user.setSessionTokenValidAfter(java.time.LocalDateTime.now());
+        userRepository.save(user);
+
+        String adminUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditService.log(AuditAction.LOGOUT, adminUsername, "user",
+                "Terminated all active sessions for user: " + user.getUsername());
+    }
+
+    @Transactional
+    public void terminateAllSessions() {
+        userRepository.terminateAllSessions(java.time.LocalDateTime.now());
+        
+        String adminUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditService.log(AuditAction.LOGOUT, adminUsername, "user",
+                "Terminated all active sessions for ALL users globally (Panic Button)");
+    }
+
     private UserResponse mapToResponse(User user) {
         return new UserResponse(
                 user.getId(), 

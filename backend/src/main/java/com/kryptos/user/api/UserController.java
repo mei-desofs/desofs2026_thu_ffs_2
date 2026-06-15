@@ -80,4 +80,18 @@ public class UserController {
 
         return ResponseEntity.ok(userService.update(id, request, currentUsername, isAdmin));
     }
+
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/terminate-sessions")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> terminateUserSessions(@PathVariable UUID id) {
+        userService.terminateUserSessions(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/terminate-all-sessions")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> terminateAllSessions() {
+        userService.terminateAllSessions();
+        return ResponseEntity.ok().build();
+    }
 }
