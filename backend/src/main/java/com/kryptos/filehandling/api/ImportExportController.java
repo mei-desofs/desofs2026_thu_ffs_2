@@ -32,6 +32,7 @@ public class ImportExportController {
   @PreAuthorize("hasRole('USER')")
   public ResponseEntity<Map<String, Object>> importCredentials(
       @RequestParam("file") MultipartFile file,
+      @RequestParam(name = "consentToStorage", defaultValue = "false") boolean consentToStorage,
       @AuthenticationPrincipal KryptosUserDetails principal) throws IOException {
     if (file == null || file.isEmpty()) {
       return ResponseEntity.badRequest().body(Map.of("error", "File is required"));
@@ -45,7 +46,7 @@ public class ImportExportController {
       throw new RateLimitExceededException("Too many import attempts. Try again later.");
     }
     int imported = importExportService.importForOwner(
-        file.getBytes(), file.getOriginalFilename(), principal.getId());
+        file.getBytes(), file.getOriginalFilename(), principal.getId(), consentToStorage);
     return ResponseEntity.ok(Map.of("imported", imported));
   }
 

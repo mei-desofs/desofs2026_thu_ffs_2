@@ -29,6 +29,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -65,7 +66,7 @@ class CredentialImportExportServiceTest {
     void importForOwner_shouldSkipMalformedLines_andCountOnlyValidRecords() throws Exception {
         when(userRepository.findById(ownerId)).thenReturn(Optional.of(owner));
         Path stored = Paths.get("/tmp/kryptos/import-xyz.kvault");
-        when(fileHandlingService.storeUpload(any(), anyString())).thenReturn(stored);
+        when(fileHandlingService.storeUpload(any(), anyString(), anyBoolean())).thenReturn(stored);
         when(fileHandlingService.importCredentials(stored))
                 .thenReturn(List.of("VALID_CT", "GARBAGE_CT"));
 
@@ -92,7 +93,7 @@ class CredentialImportExportServiceTest {
     void importForOwner_shouldAutoCreateVault_whenVaultNameUnknown() throws Exception {
         when(userRepository.findById(ownerId)).thenReturn(Optional.of(owner));
         Path stored = Paths.get("/tmp/kryptos/import-abc.kvault");
-        when(fileHandlingService.storeUpload(any(), anyString())).thenReturn(stored);
+        when(fileHandlingService.storeUpload(any(), anyString(), anyBoolean())).thenReturn(stored);
         when(fileHandlingService.importCredentials(stored)).thenReturn(List.of("CT"));
 
         CredentialExportRecord record = new CredentialExportRecord(
@@ -123,5 +124,29 @@ class CredentialImportExportServiceTest {
     void exportForOwner_throws_whenCalledWithoutExportMethodOverride() {
         assertThrows(ResourceNotFoundException.class,
                 () -> service.exportForOwner(UUID.randomUUID()));
+    }
+
+    @Test
+    void importForOwner_withoutConsent_shouldStripMetadata() throws Exception {
+        when(userRepository.findById(ownerId)).thenReturn(Optional.of(owner));
+        Path stored = Paths.get("/tmp/kryptos/import-consent-test.kvault");
+        when(fileHandlingService.storeUpload(any(), anyString(), eq(true))).thenReturn(stored);
+        when(fileHandlingService.importCredentials(stored)).thenReturn(List.of());
+
+        service.importForOwner("payload".getBytes(), "in.kvault", ownerId, false);
+
+        verify(fileHandlingService).storeUpload(any(), anyString(), eq(true));
+    }
+
+    @Test
+    void importForOwner_withConsent_shouldPreserveMetadata() throws Exception {
+        when(userRepository.findById(ownerId)).thenReturn(Optional.of(owner));
+        Path stored = Paths.get("/tmp/kryptos/import-consent-test.kvault");
+        when(fileHandlingService.storeUpload(any(), anyString(), eq(false))).thenReturn(stored);
+        when(fileHandlingService.importCredentials(stored)).thenReturn(List.of());
+
+        service.importForOwner("payload".getBytes(), "in.kvault", ownerId, true);
+
+        verify(fileHandlingService).storeUpload(any(), anyString(), eq(false));
     }
 }
