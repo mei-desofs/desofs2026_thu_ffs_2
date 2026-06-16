@@ -1,10 +1,10 @@
-### 🛡️ OWASP ZAP DAST Scan Methodology & Rule Configuration
+### OWASP ZAP DAST Scan Methodology & Rule Configuration
 
 The application is a stateless REST API secured by JWTs. Because it does not rely on traditional session management (e.g., session cookies) nor does it render HTML interfaces directly, several conventional DAST checks (such as HTML-centric CSP, CSRF tokens, and Cookie flags) are not applicable as direct vulnerabilities.
 
 To prevent false positives from failing the CI/CD pipeline, the OWASP ZAP Baseline rules have been tuned (configured in `.zap/rules.tsv`). Critical rules involving injection, transport layer security, and severe information disclosure remain set to `FAIL`.
 
-#### ⚠️ Rules Downgraded to WARN
+#### Rules Downgraded to WARN
 These rules have been downgraded from `FAIL` to `WARN`. They are acknowledged but do not block the pipeline.
 
 | Rule ID | Name | Justification |
@@ -20,7 +20,7 @@ These rules have been downgraded from `FAIL` to `WARN`. They are acknowledged bu
 | **10202** | Absence of Anti-CSRF Tokens | As a stateless JWT API that does not use cookies, the traditional CSRF attack vector does not exist. |
 | **90004** | Insufficient Site Isolation | Downgraded because the application is strictly a REST API and does not load multi-origin cross-site resources like a traditional webapp. |
 
-#### 🚫 Rules Set to IGNORE
+#### Rules Set to IGNORE
 These rules have been completely ignored as they represent clear false positives or bugged ZAP behaviors for this specific architecture.
 
 | Rule ID | Name | Justification |

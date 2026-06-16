@@ -52,17 +52,22 @@ docker-compose up -d
 ### 2. Access Health Endpoints
 
 ```bash
+# --- Application Endpoints (via Nginx Proxy) ---
 # Health check
-curl http://localhost:8080/actuator/health
+curl -k https://localhost/actuator/health
 
 # Readiness probe (K8s)
-curl http://localhost:8080/actuator/health/readiness
+curl -k https://localhost/actuator/health/readiness
 
 # Liveness probe (K8s)
-curl http://localhost:8080/actuator/health/liveness
+curl -k https://localhost/actuator/health/liveness
 
-# Prometheus metrics
-curl http://localhost:8080/actuator/prometheus
+# Prometheus metrics (App)
+curl -k https://localhost/actuator/prometheus
+
+# --- Prometheus Endpoints (Direct) ---
+# Prometheus Health Status
+curl http://localhost:9090/-/healthy
 ```
 
 ### 3. Grafana Setup
@@ -183,7 +188,7 @@ public class AuthService {
 }
 ```
 
-Access at: `http://localhost:8080/actuator/metrics/auth.login.success`
+Access at: `https://localhost/actuator/metrics/auth.login.success`
 
 ---
 
