@@ -7,6 +7,7 @@ import com.kryptos.user.domain.User;
 import com.kryptos.user.domain.UserRepository;
 import com.kryptos.vault.application.VaultService;
 import com.kryptos.vault.application.dto.CreateVaultRequest;
+import com.kryptos.vault.application.dto.UpdateVaultRequest;
 import com.kryptos.vault.application.dto.VaultResponse;
 import com.kryptos.vault.domain.Vault;
 import com.kryptos.vault.domain.VaultRepository;
@@ -108,6 +109,34 @@ class VaultServiceTest {
 
         assertThrows(ResourceNotFoundException.class,
                 () -> vaultService.findById(vaultId, ownerId));
+    }
+
+    @Test
+    void update_shouldUpdateAndReturnVault_whenOwnerIsValid() {
+        UUID vaultId = UUID.randomUUID();
+        Vault vault = Vault.builder().id(vaultId).name("Old Name").description("Old Desc").owner(owner).build();
+        when(vaultRepository.findByIdAndOwnerId(vaultId, ownerId)).thenReturn(Optional.of(vault));
+        when(vaultRepository.save(any(Vault.class))).thenReturn(vault);
+
+        UpdateVaultRequest request = new UpdateVaultRequest("New Name", "New Desc");
+        VaultResponse response = vaultService.update(vaultId, request, ownerId);
+
+        assertNotNull(response);
+        assertEquals("New Name", response.name());
+        assertEquals("New Desc", response.description());
+        verify(vaultRepository).save(vault);
+        verify(auditService).log(any(), eq("testuser"), any(), any());
+    }
+
+    @Test
+    void update_shouldThrow_whenVaultDoesNotBelongToOwner() {
+        UUID vaultId = UUID.randomUUID();
+        when(vaultRepository.findByIdAndOwnerId(vaultId, ownerId)).thenReturn(Optional.empty());
+
+        UpdateVaultRequest request = new UpdateVaultRequest("Hacked", "Hacked");
+        assertThrows(ForbiddenException.class,
+                () -> vaultService.update(vaultId, request, ownerId));
+        verify(vaultRepository, never()).save(any());
     }
 
     @Test

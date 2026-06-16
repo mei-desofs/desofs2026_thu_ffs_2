@@ -2,6 +2,7 @@ package com.kryptos.shared.security;
 
 import java.util.Collection;
 import java.util.List;
+import java.time.LocalDateTime;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -20,6 +21,10 @@ public class KryptosUserDetails implements UserDetails {
 
     public UUID getId() {
         return user.getId();
+    }
+
+    public LocalDateTime getSessionTokenValidAfter() {
+        return user.getSessionTokenValidAfter();
     }
 
     @Override

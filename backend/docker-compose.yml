@@ -1,10 +1,18 @@
 services:
+  proxy:
+    build: ./nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - app
+
   app:
     build: .
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     environment:
-      DB_URL: jdbc:postgresql://db:5432/kryptos
+      DB_URL: jdbc:postgresql://db:5432/kryptos?sslmode=verify-full&sslrootcert=/certs/ca.crt&sslcert=/certs/client.crt&sslkey=/certs/client.pk8
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
@@ -13,6 +21,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - ./certs:/certs:ro
 
   db:
     image: postgres:16-alpine
@@ -24,11 +34,46 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./certs:/certs:ro
+      - ./db/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./db/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    command: >
+      sh -c "cp /certs/server.key /tmp/server.key && chown postgres:postgres /tmp/server.key && chmod 600 /tmp/server.key && exec docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf -c hba_file=/etc/postgresql/pg_hba.conf"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d kryptos"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    depends_on:
+      - app
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
+  prometheus_data:
+  grafana_data:

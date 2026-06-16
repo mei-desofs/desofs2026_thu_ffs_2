@@ -9,6 +9,8 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.kryptos.shared.util.RequestUtils;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,6 +40,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        if (jwtService.isTokenRevoked(token)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String username;
         try {
             username = jwtService.extractUsername(token);
@@ -48,10 +55,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             var userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtService.isTokenValid(token, userDetails.getUsername())) {
+            String clientIp = RequestUtils.extractClientIp(request);
+            String userAgent = RequestUtils.extractUserAgent(request);
+            if (userDetails instanceof KryptosUserDetails && userDetails.isEnabled() && jwtService.isTokenValid(token, (KryptosUserDetails) userDetails, clientIp, userAgent)) {
                 var authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
-                        null,
+                        token,
                         userDetails.getAuthorities()
                 );
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

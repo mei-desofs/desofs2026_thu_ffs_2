@@ -19,3 +19,8 @@ backend/logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Certificates
+backend/certs/
+nginx/nginx.crt
+nginx/nginx.key

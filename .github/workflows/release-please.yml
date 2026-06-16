@@ -1,0 +1,22 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          # Para projetos Java/Maven, o Release Please sabe atualizar o pom.xml
+          # Como o teu pom.xml está dentro da pasta backend, indicamos o path.
+          path: backend
+          release-type: maven
+          target-branch: dev

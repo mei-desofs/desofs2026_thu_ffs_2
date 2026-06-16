@@ -1,21 +1,35 @@
 package com.kryptos.shared.security;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.function.Function;
 
 import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
+import com.kryptos.shared.exception.ReauthenticationRequiredException;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class JwtService {
+
+    private final RevokedTokenRepository revokedTokenRepository;
 
     @Value("${jwt.secret}")
     private String secret;
@@ -23,13 +37,18 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long expiration;
 
-    public String generateToken(String username, String role) {
+    private static final String AUDIENCE = "kryptos";
+
+    public String generateToken(String username, String role, String ipAddress, String userAgent) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
                 .subject(username)
                 .claim("role", role)
+                .claim("ip", ipAddress)
+                .claim("ua", userAgent)
+                .audience().add(AUDIENCE).and()
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(getSigningKey(), Jwts.SIG.HS256)
@@ -40,14 +59,79 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public boolean isTokenValid(String token, String username) {
+    public Date extractIssuedAt(String token) {
+        return extractClaim(token, Claims::getIssuedAt);
+    }
+
+    public void requireRecentAuthentication() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getCredentials() instanceof String token)) {
+            throw new ReauthenticationRequiredException("Re-authentication missing.");
+        }
+        Date issuedAt = extractIssuedAt(token);
+        if (issuedAt == null || issuedAt.toInstant().isBefore(Instant.now().minusSeconds(300))) {
+            throw new ReauthenticationRequiredException("Re-authentication required for sensitive operations.");
+        }
+    }
+
+    public boolean isTokenValid(String token, KryptosUserDetails userDetails, String currentIp, String currentUserAgent) {
         try {
             String tokenUsername = extractUsername(token);
-            return username != null
-                    && username.equals(tokenUsername)
-                    && !isTokenExpired(token);
+            if (userDetails == null || !userDetails.getUsername().equals(tokenUsername)) {
+                return false;
+            }
+            if (isTokenExpired(token) || isTokenRevoked(token)) {
+                return false;
+            }
+
+            String tokenIp = extractClaim(token, claims -> claims.get("ip", String.class));
+            String tokenUa = extractClaim(token, claims -> claims.get("ua", String.class));
+
+            if (tokenIp == null || tokenUa == null || !tokenIp.equals(currentIp) || !tokenUa.equals(currentUserAgent)) {
+                return false;
+            }
+            
+            Date issuedAt = extractClaim(token, Claims::getIssuedAt);
+            if (userDetails.getSessionTokenValidAfter() != null && issuedAt != null) {
+                Date validAfter = Date.from(userDetails.getSessionTokenValidAfter().atZone(ZoneId.systemDefault()).toInstant());
+                if (issuedAt.before(validAfter)) {
+                    return false;
+                }
+            }
+            
+            return true;
         } catch (JwtException | IllegalArgumentException ex) {
             return false;
+        }
+    }
+
+    public void revokeToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            LocalDateTime expiresAt = Instant.ofEpochMilli(
+                    claims.getExpiration().getTime())
+                    .atZone(ZoneId.systemDefault()).toLocalDateTime();
+
+            String tokenHash = hashToken(token);
+            revokedTokenRepository.save(new RevokedToken(tokenHash, expiresAt));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to revoke token", e);
+        }
+    }
+
+    public boolean isTokenRevoked(String token) {
+        String tokenHash = hashToken(token);
+        return revokedTokenRepository.existsByTokenHashAndExpiresAtAfter(
+                tokenHash, LocalDateTime.now());
+    }
+
+    private String hashToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
         }
     }
 
@@ -62,6 +146,7 @@ public class JwtService {
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
+                .requireAudience(AUDIENCE)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

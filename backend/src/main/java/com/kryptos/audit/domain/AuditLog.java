@@ -30,6 +30,12 @@ public class AuditLog {
     @Column(updatable = false, length = 1000)
     private String details;
 
+    @Column(name = "ip_address", updatable = false)
+    private String ipAddress;
+
+    @Column(name = "user_agent", updatable = false)
+    private String userAgent;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime timestamp;
 

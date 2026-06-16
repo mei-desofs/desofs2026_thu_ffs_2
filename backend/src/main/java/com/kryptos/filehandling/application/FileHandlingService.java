@@ -14,8 +14,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.nio.file.attribute.UserDefinedFileAttributeView;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -206,6 +208,10 @@ public class FileHandlingService {
   }
 
   public Path storeUpload(byte[] content, String originalName) throws IOException {
+    return storeUpload(content, originalName, true);
+  }
+
+  public Path storeUpload(byte[] content, String originalName, boolean stripMetadata) throws IOException {
     if (content == null) {
       throw new IllegalArgumentException("content must not be null");
     }
@@ -232,7 +238,32 @@ public class FileHandlingService {
     } catch (UnsupportedOperationException ignored) {
       // non-POSIX
     }
+    if (stripMetadata) {
+      stripMetadata(target);
+    }
     return target;
+  }
+
+  public void stripMetadata(Path filePath) throws IOException {
+    Path normalised = filePath.toAbsolutePath().normalize();
+    verifyWithinTempDir(normalised);
+
+    FileTime epoch = FileTime.fromMillis(0);
+    Files.setAttribute(normalised, "creationTime", epoch);
+    Files.setAttribute(normalised, "lastModifiedTime", epoch);
+    Files.setAttribute(normalised, "lastAccessTime", epoch);
+
+    try {
+      UserDefinedFileAttributeView view = Files.getFileAttributeView(
+          normalised, UserDefinedFileAttributeView.class);
+      if (view != null) {
+        for (String key : view.list()) {
+          view.delete(key);
+        }
+      }
+    } catch (UnsupportedOperationException ignored) {
+      // extended attributes not supported on this filesystem
+    }
   }
 
   private void verifyWithinTempDir(Path candidate) throws IOException {

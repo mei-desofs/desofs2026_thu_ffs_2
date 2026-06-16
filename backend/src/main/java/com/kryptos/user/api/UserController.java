@@ -78,11 +78,20 @@ public class UserController {
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
-        // Validar: só admins podem atualizar outros users
-        if (!id.toString().equals(authentication.getPrincipal()) && !isAdmin) {
-            throw new RuntimeException("Cannot update other users");
-        }
+        return ResponseEntity.ok(userService.update(id, request, currentUsername, isAdmin));
+    }
 
-        return ResponseEntity.ok(userService.update(id, request));
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/terminate-sessions")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> terminateUserSessions(@PathVariable UUID id) {
+        userService.terminateUserSessions(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/terminate-all-sessions")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> terminateAllSessions() {
+        userService.terminateAllSessions();
+        return ResponseEntity.ok().build();
     }
 }
