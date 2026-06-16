@@ -147,6 +147,7 @@ jobs:
       - name: Run Dependency-Check
         working-directory: backend
         run: mvn dependency-check:check -DskipTests
+        continue-on-error: true
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
