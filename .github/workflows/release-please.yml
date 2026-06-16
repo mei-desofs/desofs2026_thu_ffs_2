@@ -19,3 +19,4 @@ jobs:
           # Como o teu pom.xml está dentro da pasta backend, indicamos o path.
           path: backend
           release-type: maven
+          target-branch: dev
