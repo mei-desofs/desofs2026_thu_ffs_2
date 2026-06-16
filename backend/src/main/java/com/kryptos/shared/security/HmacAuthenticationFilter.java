@@ -33,18 +33,30 @@ public class HmacAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Skip Swagger/OpenAPI paths
+        // Skip Swagger/OpenAPI and Actuator paths
         String path = request.getRequestURI();
-        if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui")) {
+        if (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui") || path.startsWith("/actuator")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Wrap the request to cache the body
-        CachedBodyHttpServletRequest cachedRequest = new CachedBodyHttpServletRequest(request);
+        // For multipart requests, DO NOT wrap the request or read the InputStream.
+        // Tomcat's getParts() requires the InputStream to be unread.
+        String contentType = request.getContentType();
+        boolean isMultipart = contentType != null && contentType.toLowerCase().startsWith("multipart/");
 
-        String timestamp = cachedRequest.getHeader("X-Timestamp");
-        String signature = cachedRequest.getHeader("X-Signature");
+        HttpServletRequest requestToUse = request;
+        String bodyForHmac = "";
+
+        if (!isMultipart) {
+            // Wrap the request to cache the body for JSON/plain text
+            CachedBodyHttpServletRequest cachedRequest = new CachedBodyHttpServletRequest(request);
+            requestToUse = cachedRequest;
+            bodyForHmac = cachedRequest.getBodyAsString();
+        }
+
+        String timestamp = requestToUse.getHeader("X-Timestamp");
+        String signature = requestToUse.getHeader("X-Signature");
 
         if (timestamp == null || signature == null) {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
@@ -58,20 +70,19 @@ public class HmacAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String method = cachedRequest.getMethod();
-        String uri = cachedRequest.getRequestURI();
-        if (cachedRequest.getQueryString() != null) {
-            uri += "?" + cachedRequest.getQueryString();
+        String method = requestToUse.getMethod();
+        String uri = requestToUse.getRequestURI();
+        if (requestToUse.getQueryString() != null) {
+            uri += "?" + requestToUse.getQueryString();
         }
-        String body = cachedRequest.getBodyAsString();
 
-        if (!hmacService.verifySignature(signature, timestamp, method, uri, body)) {
+        if (!hmacService.verifySignature(signature, timestamp, method, uri, bodyForHmac)) {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.getWriter().write("Invalid HMAC signature. Message tampering detected.");
             return;
         }
 
         // Proceed with the wrapped request so other filters/controllers can read the body
-        filterChain.doFilter(cachedRequest, response);
+        filterChain.doFilter(requestToUse, response);
     }
 }
