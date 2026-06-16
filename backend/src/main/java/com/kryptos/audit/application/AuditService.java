@@ -4,9 +4,12 @@ import com.kryptos.audit.domain.AuditLog;
 import com.kryptos.audit.domain.AuditLogRepository;
 import com.kryptos.shared.dataprotection.DataClassificationService;
 import com.kryptos.shared.dataprotection.SensitiveDataElement;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -27,17 +30,36 @@ public class AuditService {
         String sanitizedDetails = sanitize(details);
         LocalDateTime now = LocalDateTime.now();
 
+        String ipAddress = null;
+        String userAgent = null;
+        try {
+            ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attributes != null) {
+                HttpServletRequest request = attributes.getRequest();
+                ipAddress = request.getRemoteAddr();
+                String forwardedFor = request.getHeader("X-Forwarded-For");
+                if (forwardedFor != null && !forwardedFor.isBlank()) {
+                    ipAddress = forwardedFor.split(",")[0].trim();
+                }
+                userAgent = request.getHeader("User-Agent");
+            }
+        } catch (Exception e) {
+            // Ignore if called outside HTTP request context
+        }
+
         String previousHash = auditLogRepository.findFirstByOrderByTimestampDesc()
                 .map(AuditLog::getHash)
                 .orElse(null);
 
-        String hash = computeHash(action, performedBy, targetResource, sanitizedDetails, now, previousHash);
+        String hash = computeHash(action, performedBy, targetResource, sanitizedDetails, ipAddress, userAgent, now, previousHash);
 
         AuditLog entry = AuditLog.builder()
                 .action(action)
                 .performedBy(performedBy)
                 .targetResource(targetResource)
                 .details(sanitizedDetails)
+                .ipAddress(ipAddress)
+                .userAgent(userAgent)
                 .timestamp(now)
                 .hash(hash)
                 .previousHash(previousHash)
@@ -56,7 +78,7 @@ public class AuditService {
     }
 
     private String computeHash(String action, String performedBy, String targetResource,
-                                String details, LocalDateTime timestamp, String previousHash) {
+                                String details, String ipAddress, String userAgent, LocalDateTime timestamp, String previousHash) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             String input = String.join("\0",
@@ -64,6 +86,8 @@ public class AuditService {
                     nullToEmpty(performedBy),
                     nullToEmpty(targetResource),
                     nullToEmpty(details),
+                    nullToEmpty(ipAddress),
+                    nullToEmpty(userAgent),
                     nullToEmpty(previousHash),
                     timestamp != null ? timestamp.toString() : ""
             );
@@ -76,7 +100,7 @@ public class AuditService {
 
     private String sanitize(String input) {
         if (input == null) return null;
-        return input.replaceAll("[\\x00-\\x1F\\x7F]", "");
+        return input.replaceAll("[\0-\u001F\u007F]", "");
     }
 
     private static String nullToEmpty(String s) {
