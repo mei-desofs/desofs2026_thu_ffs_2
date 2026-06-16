@@ -47,6 +47,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/2fa/verify").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/api/auth/2fa/enable", "/api/auth/2fa/disable").authenticated()
                 // V13.4.5 — Swagger/OpenAPI only accessible in non-prod profiles
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**")
