@@ -27,3 +27,15 @@ These rules have been completely ignored as they represent clear false positives
 | :--- | :--- | :--- |
 | **10049** | Non-Storable Content | Irrelevant/False Positive: 403 responses on typical static paths (e.g., `/favicon.ico`, `/robots.txt`) are expected stateless API rejections. There is nothing to cache. |
 | **90005** | Sec-Fetch-Dest | ZAP Flag Error: This is a request header sent *by* the browser, not a response header from the backend. The ZAP alert is structurally incorrect for any backend assessment. |
+
+#### Documented Findings & Resolutions
+Based on the provided DAST scan (`docs/zap-report`), the ZAP Baseline Scan completed without any High or Medium severity alerts. The following minor findings were identified and documented below:
+
+| Risk Level | Alert Name | Resolution / Remediation Plan |
+| :--- | :--- | :--- |
+| **Low** | Server Leaks Version Information via "Server" HTTP Response Header Field | The Nginx proxy returns `nginx/1.31.1` in the `Server` header. This is a low-risk information disclosure. As an accepted risk for this environment, no immediate action is required. It can be mitigated in the future by setting `server_tokens off;` in the Nginx configuration if desired. |
+| **Informational** | Content-Type Header Missing | Identified on default/empty Nginx responses. Does not pose a security threat as the application correctly sets `application/json` on all functional REST API endpoints. |
+| **Informational** | Non-Storable Content | False positive regarding 403 responses on static paths (`/favicon.ico`, `/robots.txt`). Already explicitly ignored via ZAP Rule Override `10049`. |
+| **Informational** | Sec-Fetch-* Header Missing | ZAP incorrectly flags the absence of browser-sent `Sec-Fetch-*` headers as a vulnerability in the backend response. Already explicitly ignored via ZAP Rule Override `90005` (and equivalents). |
+
+**Conclusion**: The automated DAST scan completes successfully with zero blocking issues. All identified items are low or informational, predominantly representing false positives for a stateless REST API, and are properly acknowledged or overridden.
