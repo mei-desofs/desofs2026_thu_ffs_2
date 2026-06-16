@@ -54,6 +54,14 @@ jobs:
           name: maven-target-folder
           path: backend/target/
           retention-days: 1    
+
+      - name: Upload SBOM (Software Bill of Materials)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            backend/target/classes/META-INF/sbom/application.cdx.json
+          if-no-files-found: warn
   sast:
     name: SAST (SpotBugs + Find Security Bugs + SonarCloud)
     runs-on: ubuntu-latest
